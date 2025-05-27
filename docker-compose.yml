@@ -10,7 +10,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+    - pgdata:/var/lib/postgresql/data
+    - ./init/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
 
   mariadb:
     image: mariadb:10.5
@@ -42,7 +43,7 @@ services:
       - redisdata:/data
 
 volumes:
-  pgdata: ./init/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+  pgdata:
   mariadbdata:
   mongodata:
   redisdata:
