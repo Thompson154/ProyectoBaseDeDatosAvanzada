@@ -1,0 +1,10 @@
+{
+  "name": "bdavanzada-videojuego",
+  "author": "Adrian Thompson, Ernesto Juarez and Marian Zamorano",
+  "license": "MIT",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "docker-compose -f docker-compose.yml --env-file .env up -d",
+    "stop": "docker-compose -f docker-compose.yml --env-file .env down"
+  }
+}
