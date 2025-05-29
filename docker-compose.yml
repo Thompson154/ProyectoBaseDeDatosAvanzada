@@ -11,7 +11,7 @@ services:
       - "5432:5432"
     volumes:
     - pgdata:/var/lib/postgresql/data
-    - ./init/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    - ./init/postgres-deadisland.sql:/docker-entrypoint-initdb.d/init.sql
 
   mariadb:
     image: mariadb:10.5
@@ -25,6 +25,7 @@ services:
       - "3306:3306"
     volumes:
       - mariadbdata:/var/lib/mysql
+      - ./init/mariadb-deadisland.sql:/docker-entrypoint-initdb.d/init.sql
 
   mongo:
     image: mongo:6
