@@ -46,6 +46,23 @@ CREATE TABLE misiones (
     mapa_id INT REFERENCES mapas(id)
 );
 
+-- -- Tabla misiones particionada
+-- CREATE TABLE misiones_part (
+--     id SERIAL,
+--     titulo VARCHAR(100),
+--     descripcion TEXT,
+--     tipo VARCHAR(30),
+--     nivel_recomendado INT,
+--     recompensa TEXT,
+--     mapa_id INT
+-- ) PARTITION BY LIST (tipo);
+
+-- -- Particiones
+-- CREATE TABLE misiones_principales PARTITION OF misiones_part FOR VALUES IN ('principal');
+-- CREATE TABLE misiones_secundarias PARTITION OF misiones_part FOR VALUES IN ('secundaria');
+-- CREATE TABLE misiones_evento PARTITION OF misiones_part FOR VALUES IN ('evento');
+
+
 CREATE TABLE jugador_mision (
     jugador_id INT REFERENCES jugadores(id),
     mision_id INT REFERENCES misiones(id),
@@ -70,3 +87,103 @@ CREATE TABLE inventario (
     durabilidad_actual INT,
     PRIMARY KEY (jugador_id, item_id)
 );
+
+
+-- ACA AGREGAR TODO EL CODIGO PARA INSERTAR CODIGO -----------------------------------------------
+INSERT INTO items (nombre, tipo, rareza, durabilidad_max) VALUES
+('Brass Knuckles', 'arma cuerpo a cuerpo', 'común', 100),
+('Fire Axe', 'arma cuerpo a cuerpo', 'raro', 120),
+('Baseball Bat', 'arma cuerpo a cuerpo', 'poco común', 95),
+('Claymore', 'arma cuerpo a cuerpo', 'legendario', 150),
+('Military Knife', 'arma cuerpo a cuerpo', 'común', 85),
+('Katana', 'arma cuerpo a cuerpo', 'legendario', 145),
+('Meat Mallet', 'arma contundente', 'común', 92),
+('Mace', 'arma contundente', 'raro', 112),
+('Shovel', 'arma improvisada', 'poco común', 88),
+('Electrocutor Sword', 'arma modificada', 'legendario', 160),
+('Zombie Claw', 'arma especial', 'único', 200),
+('Brass Knuckles', 'arma cuerpo a cuerpo', 'raro', 105),
+('Fire Axe', 'arma cuerpo a cuerpo', 'legendario', 130),
+('Baseball Bat', 'arma cuerpo a cuerpo', 'común', 90),
+('Claymore', 'arma cuerpo a cuerpo', 'épico', 155),
+('Military Knife', 'arma cuerpo a cuerpo', 'raro', 95),
+('Katana v2', 'arma cuerpo a cuerpo', 'único', 148),
+('Meat Mallet', 'arma contundente', 'poco común', 98),
+('Mace', 'arma contundente', 'épico', 118),
+('Shovel', 'arma improvisada', 'común', 82),
+('Electrocutor Sword', 'arma modificada', 'épico', 165),
+('Zombie Claw', 'arma especial', 'único', 210),
+('Brass Knuckles', 'arma cuerpo a cuerpo', 'épico', 110),
+('Fire Axe', 'arma cuerpo a cuerpo', 'poco común', 125),
+('Baseball Bat', 'arma cuerpo a cuerpo', 'raro', 92),
+('Claymore', 'arma cuerpo a cuerpo', 'único', 160),
+('Military Knife', 'arma cuerpo a cuerpo', 'épico', 90),
+('Katana', 'arma cuerpo a cuerpo', 'épico', 150),
+('Meat Mallet', 'arma contundente', 'raro', 100),
+('Mace', 'arma contundente', 'legendario', 115),
+('Shovel', 'arma improvisada', 'raro', 86),
+('Electrocutor Sword', 'arma modificada', 'único', 170),
+('Zombie Claw', 'arma especial', 'épico', 220);
+
+-- ACA CARGAR LOS TRIGGERS ---------------------------------------------------------------------
+
+-- -- Función para reducir durabilidad
+-- CREATE OR REPLACE FUNCTION reducir_durabilidad()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--   IF NEW.durabilidad_actual IS NOT NULL AND NEW.durabilidad_actual < OLD.durabilidad_actual THEN
+--     RAISE NOTICE 'Durabilidad reducida en jugador %, item %', NEW.jugador_id, NEW.item_id;
+--   END IF;
+--   RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+
+-- -- Trigger que ejecuta la función
+-- CREATE TRIGGER trigger_usar_item
+-- BEFORE UPDATE ON inventario
+-- FOR EACH ROW
+-- EXECUTE FUNCTION reducir_durabilidad();
+
+-- Agregando datos de items a jugadores en la tabla de inventario
+CREATE OR REPLACE PROCEDURE asignar_items_a_jugadores()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  i INT := 1;
+  jugador_id INT;
+  item_id INT;
+BEGIN
+  FOR jugador_id IN 1..3 LOOP
+    FOR i IN 1..30 LOOP
+      item_id := FLOOR(1 + random() * 11); -- IDs del 1 al 11
+      BEGIN
+        INSERT INTO inventario (jugador_id, item_id, cantidad, durabilidad_actual)
+        VALUES (jugador_id, item_id, 1, 100);
+      EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Error al insertar item %, jugador %', item_id, jugador_id;
+        ROLLBACK;
+        RETURN;
+      END;
+    END LOOP;
+  END LOOP;
+END;
+$$;
+
+-- Ejecutar procedimiento
+CALL asignar_items_a_jugadores();
+
+
+-- VISTAS --------------------------------------------------------------------------------
+-- CREATE VIEW vista_misiones_completadas AS
+-- SELECT j.nombre AS jugador, m.titulo AS mision, jm.fecha_fin
+-- FROM jugador_mision jm
+-- JOIN jugadores j ON jm.jugador_id = j.id
+-- JOIN misiones m ON jm.mision_id = m.id
+-- WHERE jm.estado = 'completada';
+
+-- -- Vista 2: Inventario actual por jugador
+-- CREATE VIEW vista_inventario_resumen AS
+-- SELECT j.nombre AS jugador, i.nombre AS item, inv.cantidad, inv.durabilidad_actual
+-- FROM inventario inv
+-- JOIN jugadores j ON inv.jugador_id = j.id
+-- JOIN items i ON inv.item_id = i.id;

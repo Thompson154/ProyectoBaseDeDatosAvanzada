@@ -57,3 +57,74 @@ CREATE TABLE recompensa_evento (
     FOREIGN KEY (evento_id) REFERENCES eventos_zombi(id)
     -- jugador_id sin FK: jugadores está en PostgreSQL
 );
+
+-- ACA AGREGAR TODO EL CODIGO PARA INSERTAR CODIGO -----------------------------------------------
+-- Agregando 15000 datos en la tabal de log_combate
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS insertar_logs_combate $$
+CREATE PROCEDURE insertar_logs_combate()
+BEGIN
+    DECLARE i INT DEFAULT 0;
+    WHILE i < 15000 DO
+        INSERT INTO log_combate (jugador_id, enemigo_id, accion, valor, momento)
+        VALUES (
+            FLOOR(1 + RAND() * 3),  -- jugadores 1 a 3
+            FLOOR(1 + RAND() * 50), -- enemigos 1 a 50
+            ELT(FLOOR(1 + RAND() * 3), 'atacar', 'curar', 'esquivar'),
+            FLOOR(5 + RAND() * 95), -- valor de 5 a 100
+            NOW() - INTERVAL FLOOR(RAND() * 1000) MINUTE
+        );
+        SET i = i + 1;
+    END WHILE;
+END $$
+
+DELIMITER ;
+
+-- Llamar al procedimiento
+CALL insertar_logs_combate();
+
+
+-- DELIMITER $$
+
+-- DROP PROCEDURE IF EXISTS insertar_recompensas_evento $$
+-- CREATE PROCEDURE insertar_recompensas_evento()
+-- BEGIN
+--     DECLARE evento_id INT;
+--     DECLARE jugador_id INT;
+--     DECLARE recompensas INT;
+--     DECLARE i INT;
+
+--     SET evento_id = 1;
+
+--     WHILE evento_id <= 5 DO
+--         SET recompensas = FLOOR(1 + RAND() * 3); -- entre 1 y 3 recompensas por evento
+--         SET i = 1;
+
+--         WHILE i <= recompensas DO
+--             SET jugador_id = FLOOR(1 + RAND() * 3); -- jugadores 1 a 3
+--             INSERT INTO recompensa_evento (evento_id, jugador_id, recompensa, fecha_entrega)
+--             VALUES (
+--                 evento_id,
+--                 jugador_id,
+--                 ELT(FLOOR(1 + RAND() * 5), 'Carta de Habilidad', 'Granada', 'Katana rara', 'Arma Corta', 'Rifle'),
+--                 NOW() - INTERVAL FLOOR(RAND() * 1000) MINUTE
+--             );
+--             SET i = i + 1;
+--         END WHILE;
+
+--         SET evento_id = evento_id + 1;
+--     END WHILE;
+-- END $$
+-- DELIMITER ;
+
+-- -- Llamar al procedimiento
+-- CALL insertar_recompensas_evento();
+
+
+
+
+
+
+
+
