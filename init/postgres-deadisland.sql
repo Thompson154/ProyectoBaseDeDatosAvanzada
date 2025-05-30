@@ -125,6 +125,59 @@ INSERT INTO items (nombre, tipo, rareza, durabilidad_max) VALUES
 ('Electrocutor Sword', 'arma modificada', 'único', 170),
 ('Zombie Claw', 'arma especial', 'épico', 220);
 
+
+-- Generar 1000 Jugadores
+INSERT INTO jugadores (nombre, clase, experiencia, nivel, estado)
+SELECT
+    'Player_' || generate_series(1, 1000) AS nombre,
+    CASE (generate_series % 3)
+        WHEN 0 THEN 'Guerrero'
+        WHEN 1 THEN 'Cazador'
+        ELSE 'Médico'
+    END AS clase,
+    FLOOR(RANDOM() * 10000)::INT AS experiencia,
+    FLOOR(RANDOM() * 10 + 1)::INT AS nivel,
+    CASE WHEN RANDOM() < 0.9 THEN 'activo' ELSE 'inactivo' END AS estado
+FROM generate_series(1, 1000);
+
+--Generar los mapas
+
+INSERT INTO mapas (nombre, zona, dificultad) VALUES
+  ('Beverly Hills Mall', 'Ciudad', 'Difícil'),
+  ('Muelle de Ocean Avenue', 'Playa', 'Normal'),
+  ('Sewers de Downtown LA', 'Zona Industrial', 'Difícil'),
+  ('Parque Griffith', 'Selva', 'Normal'),
+  ('Mansión de Monarch Studios', 'Suburbio', 'Fácil'),
+  ('Cementerio de Hollywood', 'Ciudad', 'Normal'),
+  ('Canales de Venice', 'Playa', 'Fácil'),
+  ('Estadio de LA', 'Zona Industrial', 'Difícil'),
+  ('Barrio de Silver Lake', 'Suburbio', 'Normal'),
+  ('Puerto de Long Beach', 'Zona Industrial', 'Fácil');
+
+
+
+
+--Generar Enemigos
+INSERT INTO enemigos (nombre, tipo, nivel, vida, es_jefe, mapa_id)
+SELECT
+    'Zombi_' || generate_series(1, 500) AS nombre,
+    CASE (generate_series % 7)
+        WHEN 0 THEN 'Caminante'
+        WHEN 1 THEN 'Corredor'
+        WHEN 2 THEN 'Mutante'
+        WHEN 3 THEN 'Caminante Fuego'
+        WHEN 4 THEN 'Chillona Electrica'
+        WHEN 5 THEN 'Carnicero'
+        WHEN 6 THEN 'Ahogado con Parasitos'
+        ELSE 'Jefe'
+    END AS tipo,
+    FLOOR(RANDOM() * 10 + 1)::INT AS nivel,
+    FLOOR(RANDOM() * 500 + 100)::INT AS vida,
+    CASE WHEN generate_series % 50 = 0 THEN TRUE ELSE FALSE END AS es_jefe,
+    FLOOR(RANDOM() * 50 + 1)::INT AS mapa_id
+FROM generate_series(1, 500);
+
+
 -- ACA CARGAR LOS TRIGGERS ---------------------------------------------------------------------
 
 -- -- Función para reducir durabilidad
