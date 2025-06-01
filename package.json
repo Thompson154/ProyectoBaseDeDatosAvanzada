@@ -8,6 +8,10 @@
     "stop": "docker-compose -f docker-compose.yml --env-file .env down",
     "stop2": "docker-compose down",
     "backup": "node backupDeadIsland2/scripts/backup.js",
-    "restore": "node backupDeadIsland2/scripts/restore.js"
+    "restore": "node backupDeadIsland2/scripts/restore.js",
+    "rmvolumenpg": "docker volume rm proyectobasededatosavanzada_pgdata",
+    "rmvolumenmaria": "docker volume rm proyectobasededatosavanzada_mariadbdata",
+    "rmvolumenmongo": "docker volume rm proyectobasededatosavanzada_mongodata",
+    "rmvolumenredis": "docker volume rm proyectobasededatosavanzada_redisdata"
   }
 }
