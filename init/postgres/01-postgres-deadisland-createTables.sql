@@ -71,15 +71,3 @@ CREATE TABLE inventario (
     durabilidad_actual INT,
     PRIMARY KEY (jugador_id, item_id)
 );
-
-
-
-
-
-
-
-
-
-
-
-

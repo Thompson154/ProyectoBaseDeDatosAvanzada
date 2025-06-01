@@ -1,3 +1,66 @@
+------------------- Insercion de datos -------------------------
+
+-----Insercion de datos de la tabla enemigos -----------
+
+INSERT INTO enemigos(nombre, tipo, nivel, vida, es_jefe, mapa_id)
+SELECT
+    'Zombi_' || generate_series(1, 500) AS nombre,
+    CASE (generate_series % 7)
+        WHEN 0 THEN 'Caminante'
+        WHEN 1 THEN 'Corredor'
+        WHEN 2 THEN 'Mutante'
+        WHEN 3 THEN 'Caminante Fuego'
+        WHEN 4 THEN 'Chillona Electrica'
+        WHEN 5 THEN 'Carnicero'
+        WHEN 6 THEN 'Ahogado con Parasitos'
+        ELSE 'Jefe'
+    END AS tipo,
+    FLOOR(RANDOM() * 10 + 1)::INT AS nivel,
+    FLOOR(RANDOM() * 500 + 100)::INT AS vida,
+    CASE WHEN generate_series % 50 = 0 THEN TRUE ELSE FALSE END AS es_jefe,
+    FLOOR(RANDOM() * 50 + 1)::INT AS mapa_id
+FROM generate_series(1, 500);
+
+
+-----Insercion de datos de la tabla inventario -----------
+
+DO $$
+DECLARE
+    x INT := 100;
+    i INT := 0;
+    jugador_id INT;
+    item_id INT;
+BEGIN
+    IF (SELECT COUNT(*) FROM jugadores) = 0 THEN
+        RAISE EXCEPTION 'No hay jugadores en la tabla jugadores.';
+    END IF;
+
+    IF (SELECT COUNT(*) FROM items) = 0 THEN
+        RAISE EXCEPTION 'No hay ítems en la tabla items.';
+    END IF;
+
+    WHILE i < x LOOP
+        jugador_id := (SELECT id FROM jugadores ORDER BY RANDOM() LIMIT 1);
+        item_id := (SELECT id FROM items ORDER BY RANDOM() LIMIT 1);
+
+        BEGIN
+            INSERT INTO inventario (jugador_id, item_id, cantidad, durabilidad_actual)
+            VALUES (
+                jugador_id,
+                item_id,
+                FLOOR(RANDOM() * 5 + 1),
+                FLOOR(RANDOM() * 100 + 1)
+            );
+            i := i + 1;
+        EXCEPTION WHEN unique_violation THEN
+            CONTINUE;
+        END;
+    END LOOP;
+END $$;
+
+
+-----Insercion de datos de la tabla items -----------
+
 INSERT INTO items (nombre, tipo, rareza, durabilidad_max) VALUES
 ('Brass Knuckles', 'arma cuerpo a cuerpo', 'común', 100),
 ('Fire Axe', 'arma cuerpo a cuerpo', 'raro', 120),
@@ -33,7 +96,85 @@ INSERT INTO items (nombre, tipo, rareza, durabilidad_max) VALUES
 ('Electrocutor Sword', 'arma modificada', 'único', 170),
 ('Zombie Claw', 'arma especial', 'épico', 220);
 
--- Generar 1000 Jugadores
+
+-----Insercion de datos de la tabla jefe_zombi -----------
+
+DO $$
+DECLARE
+    x INT := 100;
+    i INT := 0;
+    enemigo_id_actual INT;
+BEGIN
+    IF (SELECT COUNT(*) FROM enemigos WHERE es_jefe = true) < x THEN
+        RAISE EXCEPTION 'No hay suficientes enemigos marcados como jefes para insertar % registros en jefe_zombi.', x;
+    END IF;
+
+    FOR enemigo_id_actual IN 
+        SELECT id FROM enemigos WHERE es_jefe = true ORDER BY RANDOM() LIMIT x
+    LOOP
+        INSERT INTO jefe_zombi (enemigo_id, nombre_alias, habilidad_especial, recompensa_unica)
+        VALUES (
+            enemigo_id_actual,
+            'Alias_' || enemigo_id_actual,
+            ELT(FLOOR(RANDOM() * 4 + 1), 
+                'Explosión ácida', 
+                'Regeneración rápida', 
+                'Grito paralizante', 
+                'Velocidad extrema'),
+            ELT(FLOOR(RANDOM() * 4 + 1), 
+                'Espada legendaria', 
+                'Armadura reforzada', 
+                'Inyección mutante', 
+                'Paquete de suministros')
+        );
+    END LOOP;
+END $$;
+
+
+-----Insercion de datos de la tabla jugador_mision -----------
+
+DO $$
+DECLARE
+    x INT := 100;
+    i INT := 0;
+    jugador_id INT;
+    mision_id INT;
+    estados TEXT[] := ARRAY['en progreso', 'completada', 'fallida'];
+    fecha_ini TIMESTAMP;
+BEGIN
+    IF (SELECT COUNT(*) FROM jugadores) = 0 THEN
+        RAISE EXCEPTION 'No hay jugadores en la tabla jugadores.';
+    END IF;
+
+    IF (SELECT COUNT(*) FROM misiones) = 0 THEN
+        RAISE EXCEPTION 'No hay misiones en la tabla misiones.';
+    END IF;
+
+    WHILE i < x LOOP
+        jugador_id := (SELECT id FROM jugadores ORDER BY RANDOM() LIMIT 1);
+        mision_id := (SELECT id FROM misiones ORDER BY RANDOM() LIMIT 1);
+        fecha_ini := NOW() - INTERVAL '1 day' * FLOOR(RANDOM() * 30 + 1); -- fecha en los últimos 30 días
+
+        BEGIN
+            INSERT INTO jugador_mision (
+                jugador_id, mision_id, estado, fecha_inicio, fecha_fin
+            ) VALUES (
+                jugador_id,
+                mision_id,
+                estados[FLOOR(RANDOM() * array_length(estados, 1) + 1)],
+                fecha_ini,
+                fecha_ini + INTERVAL '1 hour' * FLOOR(RANDOM() * 24 + 1)
+            );
+            i := i + 1;
+        EXCEPTION WHEN unique_violation THEN
+            CONTINUE;
+        END;
+    END LOOP;
+END $$;
+
+
+-----Insercion de datos de la tabla jugadores -----------
+
 INSERT INTO jugadores (nombre, clase, experiencia, nivel, estado)
 SELECT
     'Player_' || generate_series(1, 1000) AS nombre,
@@ -48,7 +189,8 @@ SELECT
 FROM generate_series(1, 1000);
 
 
---Generar los mapas
+-----Insercion de datos de la tabla mapas -----------
+
 INSERT INTO mapas (nombre, zona, dificultad) VALUES
   ('Beverly Hills Mall', 'Ciudad', 'Difícil'),
   ('Muelle de Ocean Avenue', 'Playa', 'Normal'),
@@ -62,50 +204,39 @@ INSERT INTO mapas (nombre, zona, dificultad) VALUES
   ('Puerto de Long Beach', 'Zona Industrial', 'Fácil');
 
 
---Generar Enemigos
-INSERT INTO enemigos(nombre, tipo, nivel, vida, es_jefe, mapa_id)
-SELECT
-    'Zombi_' || generate_series(1, 500) AS nombre,
-    CASE (generate_series % 7)
-        WHEN 0 THEN 'Caminante'
-        WHEN 1 THEN 'Corredor'
-        WHEN 2 THEN 'Mutante'
-        WHEN 3 THEN 'Caminante Fuego'
-        WHEN 4 THEN 'Chillona Electrica'
-        WHEN 5 THEN 'Carnicero'
-        WHEN 6 THEN 'Ahogado con Parasitos'
-        ELSE 'Jefe'
-    END AS tipo,
-    FLOOR(RANDOM() * 10 + 1)::INT AS nivel,
-    FLOOR(RANDOM() * 500 + 100)::INT AS vida,
-    CASE WHEN generate_series % 50 = 0 THEN TRUE ELSE FALSE END AS es_jefe,
-    FLOOR(RANDOM() * 50 + 1)::INT AS mapa_id
-FROM generate_series(1, 500);
+-----Insercion de datos de la tabla misiones -----------
 
--- Agregando datos de items a jugadores en la tabla de inventario
-CREATE OR REPLACE PROCEDURE asignar_items_a_jugadores()
-LANGUAGE plpgsql
-AS $$
+DO $$
 DECLARE
-  i INT := 1;
-  jugador_id INT;
-  item_id INT;
+    x INT := 50;
+    i INT := 1;
+    tipos TEXT[] := ARRAY['Principal', 'Secundaria', 'Desafío', 'Exploración'];
+    recompensas TEXT[] := ARRAY['XP + Arma rara', 'Dinero + Consumibles', 'Llave secreta', 'Objeto legendario', 'Acceso a zona nueva'];
+    mapa_id_actual INT;
 BEGIN
-  FOR jugador_id IN 1..3 LOOP
-    FOR i IN 1..30 LOOP
-      item_id := FLOOR(1 + random() * 11); -- IDs del 1 al 11
-      BEGIN
-        INSERT INTO inventario (jugador_id, item_id, cantidad, durabilidad_actual)
-        VALUES (jugador_id, item_id, 1, 100);
-      EXCEPTION WHEN OTHERS THEN
-        RAISE NOTICE 'Error al insertar item %, jugador %', item_id, jugador_id;
-        ROLLBACK;
-        RETURN;
-      END;
-    END LOOP;
-  END LOOP;
-END;
-$$;
+    IF (SELECT COUNT(*) FROM mapas) = 0 THEN
+        RAISE EXCEPTION 'No hay mapas en la tabla mapas.';
+    END IF;
 
--- Ejecutar procedimiento
-CALL asignar_items_a_jugadores();
+    WHILE i <= x LOOP
+        mapa_id_actual := (SELECT id FROM mapas ORDER BY RANDOM() LIMIT 1);
+
+        INSERT INTO misiones (
+            titulo,
+            descripcion,
+            tipo,
+            nivel_recomendado,
+            recompensa,
+            mapa_id
+        ) VALUES (
+            'Misión #' || i,
+            'Esta es una misión generada automáticamente con ID ' || i,
+            tipos[FLOOR(RANDOM() * array_length(tipos, 1) + 1)],
+            FLOOR(RANDOM() * 10 + 1),
+            recompensas[FLOOR(RANDOM() * array_length(recompensas, 1) + 1)],
+            mapa_id_actual
+        );
+
+        i := i + 1;
+    END LOOP;
+END $$;
