@@ -63,7 +63,7 @@ INSERT INTO mapas (nombre, zona, dificultad) VALUES
 
 
 --Generar Enemigos
-INSERT INTO enemigos(nombre, tipo, nivel, vida, es_jefe, mapa_id)
+INSERT INTO enemigos (nombre, tipo, nivel, vida, es_jefe, mapa_id)
 SELECT
     'Zombi_' || generate_series(1, 500) AS nombre,
     CASE (generate_series % 7)
@@ -79,8 +79,9 @@ SELECT
     FLOOR(RANDOM() * 10 + 1)::INT AS nivel,
     FLOOR(RANDOM() * 500 + 100)::INT AS vida,
     CASE WHEN generate_series % 50 = 0 THEN TRUE ELSE FALSE END AS es_jefe,
-    FLOOR(RANDOM() * 50 + 1)::INT AS mapa_id
+    (SELECT id FROM mapas ORDER BY RANDOM() LIMIT 1) AS mapa_id
 FROM generate_series(1, 500);
+
 
 -- Agregando datos de items a jugadores en la tabla de inventario
 CREATE OR REPLACE PROCEDURE asignar_items_a_jugadores()
