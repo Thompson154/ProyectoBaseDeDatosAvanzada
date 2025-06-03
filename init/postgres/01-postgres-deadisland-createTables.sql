@@ -1,6 +1,8 @@
 
 -- PostgreSQL - Dead Island 2 - Tablas estructurales con relaciones integradas
 
+
+
 CREATE TABLE jugadores (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(50) NOT NULL,
@@ -10,6 +12,19 @@ CREATE TABLE jugadores (
     estado VARCHAR(20) DEFAULT 'activo',
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+
+-- Lo de abajo se borra si no funciona la prueba
+CREATE TABLE usuarios (
+    id SERIAL PRIMARY KEY,
+    jugador_id INT UNIQUE REFERENCES jugadores(id) ON DELETE CASCADE,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    correo VARCHAR(100) NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+----Lo de arriba es prueba si no funciona se borra
+
 
 CREATE TABLE mapas (
     id SERIAL PRIMARY KEY,
@@ -71,15 +86,3 @@ CREATE TABLE inventario (
     cantidad INT DEFAULT 1,
     durabilidad_actual INT
 );
-
-
-
-
-
-
-
-
-
-
-
-

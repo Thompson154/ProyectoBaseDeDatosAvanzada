@@ -67,4 +67,19 @@ END;
 $$ LANGUAGE plpgsql;
 
 
---Funcion
+
+-- Total de enemigos derrotados por un jugador en todas sus partidas
+CREATE OR REPLACE FUNCTION total_enemigos_derrotados_por_jugador(p_jugador_id INT)
+RETURNS INT AS $$
+DECLARE
+    total INT;
+BEGIN
+    SELECT COALESCE(SUM(enemigos_derrotados), 0)
+    INTO total
+    FROM partidas
+    WHERE jugador_id = p_jugador_id;
+
+    RETURN total;
+END;
+$$ LANGUAGE plpgsql;
+

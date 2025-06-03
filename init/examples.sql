@@ -18,6 +18,10 @@
 -- Obtener recompensa de misiones
 -- SELECT obtener_recompensa_mision(4);
 
+-- Obetener todos los enemigos que derroto un jugador
+-- SELECT total_enemigos_derrotados_por_jugador(3);
+
+
 ------------------------------------------------------------------------------------------------------
 
 --Stored Procedures (Postgres)
@@ -69,6 +73,17 @@
 -- SET estado = 'completada', fecha_fin = CURRENT_TIMESTAMP
 -- WHERE jugador_id = 1271 AND mision_id = 6;
 -- SELECT id, experiencia FROM jugadores WHERE id = 1271;
+
+
+--- El trigger de abajo ay que probar si funciona.....  
+-- -- Probar el trigger reduciendo la durabilidad de un ítem a 0
+-- UPDATE inventario
+-- SET durabilidad_actual = 0
+-- WHERE jugador_id = 1 AND item_id = 1;
+
+-- -- Verificar que el ítem fue eliminado del inventario
+-- SELECT * FROM inventario
+-- WHERE jugador_id = 1 AND item_id = 1;
 
 -------------------------------------------------------------------------------------------------------
 

@@ -103,3 +103,42 @@ AFTER UPDATE ON jugador_mision
 FOR EACH ROW
 EXECUTE FUNCTION actualizar_experiencia();
 
+
+---- New Trigger Probar si funciona 
+
+-- CREATE OR REPLACE FUNCTION eliminar_item_roto()
+--     RETURNS TRIGGER AS $$
+-- BEGIN
+--     IF NEW.durabilidad_actual <= 0 THEN
+--         -- Generar mensaje de notificación
+--         RAISE NOTICE 'El ítem % del jugador % se ha roto y fue eliminado del inventario.',
+--             (SELECT nombre FROM items WHERE id = NEW.item_id),
+--             (SELECT nombre FROM jugadores WHERE id = NEW.jugador_id);
+
+--         -- Eliminar el ítem del inventario
+--         DELETE FROM inventario
+--         WHERE jugador_id = NEW.jugador_id AND item_id = NEW.item_id;
+
+--         -- Retornar NULL porque el registro ya fue eliminado
+--         RETURN NULL;
+--     END IF;
+
+--     RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+
+-- -- Crear el trigger
+-- CREATE TRIGGER trigger_item_roto
+--     BEFORE UPDATE ON inventario
+--     FOR EACH ROW
+--     WHEN (NEW.durabilidad_actual <= 0)
+-- EXECUTE FUNCTION eliminar_item_roto();
+
+-- -- Asegurarse de que existe un ítem en el inventario
+-- INSERT INTO inventario (jugador_id, item_id, cantidad, durabilidad_actual)
+-- SELECT 1, 1, 1, durabilidad_max
+-- FROM items
+-- WHERE id = 1
+-- ON CONFLICT DO NOTHING;
+
+

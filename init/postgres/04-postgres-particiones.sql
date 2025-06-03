@@ -1,15 +1,17 @@
 -- Tabla misiones particionada
-CREATE TABLE misiones_part (
+CREATE TABLE mapas_particionada(
     id SERIAL,
-    titulo VARCHAR(100),
-    descripcion TEXT,
-    tipo VARCHAR(30),
-    nivel_recomendado INT,
-    recompensa TEXT,
-    mapa_id INT
-) PARTITION BY LIST (tipo);
+    nombre VARCHAR(50) NOT NULL,
+    zona VARCHAR(50),
+    dificultad VARCHAR(20) NOT NULL,
+    PRIMARY KEY (id, dificultad)
+) PARTITION BY LIST (dificultad);
 
 -- Particiones
-CREATE TABLE misiones_principales PARTITION OF misiones_part FOR VALUES IN ('principal');
-CREATE TABLE misiones_secundarias PARTITION OF misiones_part FOR VALUES IN ('secundaria');
-CREATE TABLE misiones_evento PARTITION OF misiones_part FOR VALUES IN ('evento');
+CREATE TABLE mapas_dificiles PARTITION OF mapas_particionada FOR VALUES IN ('Difícil');
+CREATE TABLE mapas_normal PARTITION OF mapas_particionada FOR VALUES IN ('Normal');
+CREATE TABLE mapas_facil PARTITION OF mapas_particionada FOR VALUES IN ('Fácil');
+
+INSERT INTO mapas_particionada(id, nombre, zona, dificultad)
+SELECT id, nombre, zona, dificultad FROM mapas;
+

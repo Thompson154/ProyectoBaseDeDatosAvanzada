@@ -48,6 +48,17 @@ SELECT
 FROM generate_series(1, 1000);
 
 
+-- Se borra esta generacion de 1000 usuarios si no funciona
+INSERT INTO usuarios (jugador_id, username, correo, password)
+SELECT
+    id AS jugador_id,
+    'user' || id AS username,
+    'user' || id || '@gmail.com' AS correo,
+    '1234' AS password
+FROM jugadores
+WHERE id <= 1000;
+---- Se borra lo de arriba si no funciona
+
 --Generar los mapas
 INSERT INTO mapas (nombre, zona, dificultad) VALUES
   ('Beverly Hills Mall', 'Ciudad', 'Difícil'),
