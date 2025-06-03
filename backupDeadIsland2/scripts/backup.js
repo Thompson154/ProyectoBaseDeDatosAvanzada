@@ -3,7 +3,7 @@ const { exec } = require("child_process");
 require("dotenv").config();
 const fs = require("fs");
 
-// Crear carpetas de backup si no existen
+// Crea carpetas de backup si no hay
 [
   process.env.PG_BACKUP_FOLDER,
   process.env.MARIADB_BACKUP_FOLDER,

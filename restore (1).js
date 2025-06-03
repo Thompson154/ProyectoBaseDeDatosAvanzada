@@ -1,46 +1,90 @@
-
 const { execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
 
-function restorePostgres() {
-  const container = process.env.PG_CONTAINER;
-  const user = process.env.PG_USER;
-  const db = process.env.PG_DB;
-  const folder = process.env.PG_BACKUP_FOLDER;
+const isWindows = process.platform === "win32";
+const shellOption = isWindows ? undefined : "/bin/bash";
 
-  const latestDump = fs.readdirSync(folder)
+function restorePostgres() {
+  const folder = process.env.PG_BACKUP_FOLDER;
+  const latestFile = fs.readdirSync(folder)
     .filter(name => name.endsWith(".dump"))
     .sort()
     .reverse()[0];
 
-  if (!latestDump) {
-    console.error("❌ No PostgreSQL .dump file found in", folder);
+  if (!latestFile) {
+    console.error("❌ No PostgreSQL backup found.");
     return;
   }
 
-  const dbToRestore = `hash_${db}`;
-  const containerDumpPath = `/tmp/${latestDump}`;
-  const localDumpPath = path.join(folder, latestDump);
+  const container = process.env.PG_CONTAINER;
+  const user = process.env.PG_USER;
+  const tempFolder = process.env.PG_TEMP_FOLDER;
+  const db = process.env.PG_DB;
+  const newDb = "hash_" + db;
+  const localPath = path.join(folder, latestFile);
+  const containerPath = path.posix.join(tempFolder, latestFile);
 
-  console.log("Copying backup to container: " + containerDumpPath);
-  execSync(`docker cp "${localDumpPath}" ${container}:${containerDumpPath}`);
-
-  console.log("Creating database: " + dbToRestore);
-  execSync(`docker exec -u postgres ${container} createdb -U ${user} ${dbToRestore}`);
-
-  console.log("Restoring database...");
-  execSync(`docker exec -u postgres ${container} pg_restore -U ${user} -d ${dbToRestore} ${containerDumpPath}`, {
+  console.log(`📤 Copiando backup a contenedor: ${containerPath}`);
+  execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
     stdio: "inherit",
-    shell: "/bin/bash"
+    shell: shellOption
   });
 
-  console.log("PostgreSQL restoration complete.");
+  console.log(`📀 Creando base de datos ${newDb}`);
+  execSync(`docker exec -u postgres ${container} createdb -U ${user} ${newDb}`, {
+    stdio: "inherit",
+    shell: shellOption
+  });
+
+  console.log(`♻ Restaurando base de datos desde: ${latestFile}`);
+  execSync(`docker exec -u postgres ${container} pg_restore -U ${user} -d ${newDb} ${containerPath}`, {
+    stdio: "inherit",
+    shell: shellOption
+  });
+
+  console.log("✅ PostgreSQL restaurado con éxito en", newDb);
+}
+
+function restoreMariaDB() {
+  const folder = process.env.MARIADB_BACKUP_FOLDER;
+  const latestFile = fs.readdirSync(folder)
+    .filter(name => name.endsWith(".sql"))
+    .sort()
+    .reverse()[0];
+
+  if (!latestFile) {
+    console.error("❌ No MariaDB backup found.");
+    return;
+  }
+
+  const container = process.env.MARIADB_CONTAINER;
+  const user = process.env.MARIADB_USER;
+  const pass = process.env.MARIADB_PASSWORD;
+  const db = process.env.MARIADB_DB;
+  const tempFolder = process.env.MARIADB_TEMP_FOLDER;
+  const localPath = path.join(folder, latestFile);
+  const containerPath = path.posix.join(tempFolder, latestFile);
+
+  console.log(`📤 Copiando backup a contenedor: ${containerPath}`);
+  execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
+    stdio: "inherit",
+    shell: shellOption
+  });
+
+  console.log(`♻ Restaurando MariaDB desde: ${latestFile}`);
+  execSync(`docker exec ${container} sh -c "mysql -u${user} -p${pass} ${db} < ${containerPath}"`, {
+    stdio: "inherit",
+    shell: shellOption
+  });
+
+  console.log("✅ MariaDB restaurado con éxito en", db);
 }
 
 try {
   restorePostgres();
+  restoreMariaDB();
 } catch (err) {
-  console.error("❌ Error during restore:", err.message);
+  console.error("❌ Error al restaurar:", err.message);
 }

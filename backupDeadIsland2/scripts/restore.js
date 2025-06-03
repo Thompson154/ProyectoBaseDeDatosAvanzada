@@ -1,8 +1,30 @@
-
 const { execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
+
+const isWindows = process.platform === "win32";
+const shellOption = isWindows ? undefined : "/bin/bash";
+
+function getUniqueDbName(container, user, baseName, queryCmd) {
+  let attempt = 0;
+  let dbName = "";
+
+  while (true) {
+    dbName = `4hash_${baseName}`;
+    try {
+      execSync(
+        `docker exec -u ${user} ${container} ${queryCmd(dbName)}`,
+        { stdio: "pipe", shell: shellOption }
+      );
+      suffix = ++attempt;
+    } catch {
+      break;
+    }
+  }
+
+  return dbName;
+}
 
 function restorePostgres() {
   const folder = process.env.PG_BACKUP_FOLDER;
@@ -11,15 +33,38 @@ function restorePostgres() {
     .sort()
     .reverse()[0];
 
-  if (!latestFile) return console.error("No PostgreSQL backup found.");
+  if (!latestFile) {
+    console.error("❌ No PostgreSQL backup found.");
+    return;
+  }
 
-  const fullPath = path.join(folder, latestFile);
-  console.log(`Restoring PostgreSQL from ${fullPath}...`);
+  const container = process.env.PG_CONTAINER;
+  const user = process.env.PG_USER;
+  const tempFolder = process.env.PG_TEMP_FOLDER;
+  const db = process.env.PG_DB;
+  const localPath = path.join(folder, latestFile);
+  const containerPath = path.posix.join(tempFolder, latestFile);
 
-  execSync(
-    `docker exec -i ${process.env.PG_CONTAINER} pg_restore -U ${process.env.PG_USER} -d ${process.env.PG_DB} -c < ${fullPath}`,
-    { stdio: "inherit", shell: "/bin/bash" }
+  console.log(`📤 Copiando backup a contenedor: ${containerPath}`);
+  execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  const newDb = getUniqueDbName(container, "postgres", db, (name) =>
+    `psql -U ${user} -tc "SELECT 1 FROM pg_database WHERE datname = '${name}'"`
   );
+
+  console.log(`📀 Creando base de datos ${newDb}`);
+  execSync(`docker exec -u postgres ${container} createdb -U ${user} ${newDb}`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  console.log(`♻ Restaurando base de datos: ${newDb}`);
+  execSync(`docker exec -u postgres ${container} pg_restore -U ${user} -d ${newDb} ${containerPath}`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  console.log("✅ PostgreSQL restaurado en:", newDb);
 }
 
 function restoreMariaDB() {
@@ -29,21 +74,108 @@ function restoreMariaDB() {
     .sort()
     .reverse()[0];
 
-  if (!latestFile) return console.error("No MariaDB backup found.");
+  if (!latestFile) {
+    console.error("No MariaDB backup found.");
+    return;
+  }
 
-  const fullPath = path.join(folder, latestFile);
-  console.log(`Restoring MariaDB from ${fullPath}...`);
+  const container = process.env.MARIADB_CONTAINER;
+  const user = process.env.MARIADB_USER;
+  const pass = process.env.MARIADB_PASSWORD;
+  const db = process.env.MARIADB_DB;
+  const tempFolder = process.env.MARIADB_TEMP_FOLDER;
+  const localPath = path.join(folder, latestFile);
+  const containerPath = path.posix.join(tempFolder, latestFile);
 
-  execSync(
-    `docker exec -i ${process.env.MARIADB_CONTAINER} mysql -u${process.env.MARIADB_USER} -p${process.env.MARIADB_PASSWORD} ${process.env.MARIADB_DB} < ${fullPath}`,
-    { stdio: "inherit", shell: "/bin/bash" }
+  console.log(`📤 Copiando backup a contenedor: ${containerPath}`);
+  execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  const newDb = getUniqueDbName(container, "root", db, (name) =>
+    `mysql -u${user} -p${pass} -e "USE ${name}"`
   );
+
+  console.log(`📀 Creando base de datos ${newDb}`);
+  execSync(`docker exec ${container} mysql -uroot -p${pass} -e "CREATE DATABASE ${newDb}"`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  console.log(`♻ Restaurando MariaDB en ${newDb}`);
+  execSync(`docker exec ${container} sh -c "mysql -uroot -p${pass} ${newDb} < ${containerPath}"`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  console.log("✅ MariaDB restaurado en:", newDb);
+}
+
+
+function restoreMongo() {
+  const folder = process.env.MONGO_BACKUP_FOLDER;
+  const latestFile = fs.readdirSync(folder)
+    .filter(name => name.endsWith(".archive"))
+    .sort()
+    .reverse()[0];
+
+  if (!latestFile) {
+    console.error("No MongoDB backup found.");
+    return;
+  }
+
+  const container = process.env.MONGO_CONTAINER;
+  const db = process.env.MONGO_DB;
+  const tempFolder = process.env.MONGO_TEMP_FOLDER;
+  const localPath = path.join(folder, latestFile);
+  const containerPath = path.posix.join(tempFolder, latestFile);
+  const newDb = `${db}_restored_${Date.now()}`;
+
+  console.log(`Copiando backup a contenedor: ${containerPath}`);
+  execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  console.log(`♻ Restaurando MongoDB en ${newDb}`);
+  execSync(`docker exec ${container} mongorestore --nsFrom='${db}.*' --nsTo='${newDb}.*' --archive=${containerPath}`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  console.log("MongoDB restaurado en:", newDb);
+}
+
+function restoreRedis() {
+  const folder = process.env.REDIS_BACKUP_FOLDER;
+  const latestFile = fs.readdirSync(folder)
+    .filter(name => name.endsWith(".rdb"))
+    .sort()
+    .reverse()[0];
+
+  if (!latestFile) {
+    console.error("No Redis backup found.");
+    return;
+  }
+
+  const container = process.env.REDIS_CONTAINER;
+  const localPath = path.join(folder, latestFile);
+  const containerPath = path.posix.join("/data", "dump.rdb");
+
+  console.log(`📤 Copiando snapshot RDB a contenedor: ${containerPath}`);
+  execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  console.log("♻ Reiniciando Redis para aplicar RDB...");
+  execSync(`docker restart ${container}`, {
+    stdio: "inherit", shell: shellOption
+  });
+
+  console.log("✅ Redis restaurado correctamente.");
 }
 
 try {
   restorePostgres();
   restoreMariaDB();
-  console.log("Restauración completada para PostgreSQL y MariaDB.");
+  restoreMongo();
+  restoreRedis();
 } catch (err) {
   console.error("Error al restaurar:", err.message);
 }
