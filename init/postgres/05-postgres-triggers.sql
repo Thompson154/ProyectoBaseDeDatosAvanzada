@@ -1,18 +1,17 @@
 -- ACA CARGAR LOS TRIGGERS ---------------------------------------------------------------------
 
--- Función para reducir durabilidad
-CREATE OR REPLACE FUNCTION reducir_durabilidad() -- Probar que funcione
+--Trigger para ver la durabilidad del arma 
+CREATE OR REPLACE FUNCTION reducir_durabilidad()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.durabilidad_actual IS NOT NULL AND NEW.durabilidad_actual < OLD.durabilidad_actual THEN
-    RAISE NOTICE 'Durabilidad reducida en jugador %, item %', NEW.jugador_id, NEW.item_id;
-  END IF;
-  RETURN NEW;
+    IF NEW.durabilidad_actual <= OLD.durabilidad_actual AND NEW.durabilidad_actual < 20 THEN
+        RAISE NOTICE 'Advertencia: La durabilidad del ítem % para el jugador % está baja (%).', NEW.item_id, NEW.jugador_id, NEW.durabilidad_actual;
+    END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger que ejecuta la función
-CREATE TRIGGER trigger_usar_item
+CREATE or replace TRIGGER trigger_reducir_durabilidad
 BEFORE UPDATE ON inventario
 FOR EACH ROW
 EXECUTE FUNCTION reducir_durabilidad();
@@ -46,60 +45,61 @@ AFTER UPDATE ON mapas
 FOR EACH ROW
 EXECUTE FUNCTION log_actualizacion_mapa();
 
--- Tabla del trigger 4
-CREATE TABLE log_jugador_mision (
-    id SERIAL PRIMARY KEY,
-    jugador_id INT NOT NULL,
-    mision_id INT NOT NULL,
-    accion VARCHAR(20) NOT NULL CHECK (accion IN ('INSERT', 'UPDATE')),
-    estado_anterior VARCHAR(20),
-    estado_nuevo VARCHAR(20),
-    fecha_inicio_anterior TIMESTAMP,
-    fecha_inicio_nueva TIMESTAMP,
-    fecha_fin_anterior TIMESTAMP,
-    fecha_fin_nueva TIMESTAMP,
-    fecha_registro TIMESTAMP DEFAULT NOW(),
-    FOREIGN KEY (jugador_id) REFERENCES jugadores(id),
-    FOREIGN KEY (mision_id) REFERENCES misiones(id)
-);
-
-
--- trigger 4 
-CREATE OR REPLACE FUNCTION fn_jugador_mision_changes()
+-- Validar el nivel del enemigo
+CREATE OR REPLACE FUNCTION validar_nivel_enemigo()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.estado NOT IN ('en progreso', 'completada', 'fallida') THEN
-        RAISE EXCEPTION 'Estado inválido en jugador_mision. Debe ser: en progreso, completada o fallida.';
+    IF NEW.nivel < 0 THEN
+        RAISE EXCEPTION 'El nivel del enemigo no puede ser negativo';
     END IF;
-
-    INSERT INTO log_jugador_mision (
-        jugador_id, 
-        mision_id, 
-        accion, 
-        estado_anterior, 
-        estado_nuevo, 
-        fecha_inicio_anterior, 
-        fecha_inicio_nueva, 
-        fecha_fin_anterior, 
-        fecha_fin_nueva
-    )
-    VALUES (
-        OLD.jugador_id,
-        OLD.mision_id,
-        'UPDATE',
-        OLD.estado,
-        NEW.estado,
-        OLD.fecha_inicio,
-        NEW.fecha_inicio,
-        OLD.fecha_fin,
-        NEW.fecha_fin
-    );
-
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-create or replace trigger trg_fn_jugador_mision_changes
-after update on jugador_mision
-for each row
-execute function fn_jugador_mision_changes();
+CREATE TRIGGER trigger_validar_nivel_enemigo
+BEFORE INSERT ON enemigos
+FOR EACH ROW
+EXECUTE FUNCTION validar_nivel_enemigo();
+
+-- Trigger para registrar un nuevo tipo de jefe
+CREATE TABLE log_jefes (
+    id SERIAL PRIMARY KEY,
+    jefe_id INT NOT NULL,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (jefe_id) REFERENCES jefe_zombi(id)
+);
+
+
+CREATE OR REPLACE FUNCTION log_nuevo_jefe()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO log_jefes (jefe_id)
+    VALUES (NEW.id);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_log_nuevo_jefe
+AFTER INSERT ON jefe_zombi
+FOR EACH ROW
+EXECUTE FUNCTION log_nuevo_jefe();
+
+--Trigger para actualizar la experiencia
+
+CREATE OR REPLACE FUNCTION actualizar_experiencia()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.estado = 'completada' AND OLD.estado != 'completada' THEN
+        UPDATE jugadores
+        SET experiencia = experiencia + 100
+        WHERE id = NEW.jugador_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_actualizar_experiencia
+AFTER UPDATE ON jugador_mision
+FOR EACH ROW
+EXECUTE FUNCTION actualizar_experiencia();
+
