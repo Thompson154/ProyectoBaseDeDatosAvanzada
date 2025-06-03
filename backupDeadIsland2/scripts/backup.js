@@ -59,7 +59,7 @@ function backupMongo() {
   });
 }
 
-// Redis Backup (RDB snapshot, requiere que Redis esté configurado para generar dump.rdb)
+// Redis Backup falta q haga el snapshot
 function backupRedis() {
   const fileName = `dump_deadIsland2${fecha()}.rdb`;
   const cpCmd = `docker cp ${process.env.REDIS_CONTAINER}:${process.env.REDIS_TEMP_FOLDER}/dump.rdb ${process.env.REDIS_BACKUP_FOLDER}/${fileName}`;
@@ -68,8 +68,7 @@ function backupRedis() {
     console.log("Redis backup done:", fileName);
   });
 }
-
-// Cron job: ejecuta cada minuto (modifica como quieras)
+// Por mientras es de un minuto
 const job = new cron.CronJob("*/1 * * * *", () => {
   console.log("Iniciando backups a las", new Date().toLocaleString());
   backupPostgres();

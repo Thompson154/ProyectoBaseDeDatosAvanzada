@@ -6,25 +6,7 @@ require("dotenv").config();
 const isWindows = process.platform === "win32";
 const shellOption = isWindows ? undefined : "/bin/bash";
 
-function getUniqueDbName(container, user, baseName, queryCmd) {
-  let attempt = 0;
-  let dbName = "";
-
-  while (true) {
-    dbName = `4hash_${baseName}`;
-    try {
-      execSync(
-        `docker exec -u ${user} ${container} ${queryCmd(dbName)}`,
-        { stdio: "pipe", shell: shellOption }
-      );
-      suffix = ++attempt;
-    } catch {
-      break;
-    }
-  }
-
-  return dbName;
-}
+const DB_SUFFIX = "7";
 
 function restorePostgres() {
   const folder = process.env.PG_BACKUP_FOLDER;
@@ -33,15 +15,13 @@ function restorePostgres() {
     .sort()
     .reverse()[0];
 
-  if (!latestFile) {
-    console.error("❌ No PostgreSQL backup found.");
-    return;
-  }
+  if (!latestFile) return console.error("❌ No PostgreSQL backup found.");
 
   const container = process.env.PG_CONTAINER;
   const user = process.env.PG_USER;
   const tempFolder = process.env.PG_TEMP_FOLDER;
-  const db = process.env.PG_DB;
+  const baseName = process.env.PG_DB;
+  const newDb = `${DB_SUFFIX}hash_${baseName}`;
   const localPath = path.join(folder, latestFile);
   const containerPath = path.posix.join(tempFolder, latestFile);
 
@@ -49,10 +29,6 @@ function restorePostgres() {
   execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
     stdio: "inherit", shell: shellOption
   });
-
-  const newDb = getUniqueDbName(container, "postgres", db, (name) =>
-    `psql -U ${user} -tc "SELECT 1 FROM pg_database WHERE datname = '${name}'"`
-  );
 
   console.log(`📀 Creando base de datos ${newDb}`);
   execSync(`docker exec -u postgres ${container} createdb -U ${user} ${newDb}`, {
@@ -74,15 +50,13 @@ function restoreMariaDB() {
     .sort()
     .reverse()[0];
 
-  if (!latestFile) {
-    console.error("No MariaDB backup found.");
-    return;
-  }
+  if (!latestFile) return console.error("No MariaDB backup found.");
 
   const container = process.env.MARIADB_CONTAINER;
   const user = process.env.MARIADB_USER;
   const pass = process.env.MARIADB_PASSWORD;
-  const db = process.env.MARIADB_DB;
+  const baseName = process.env.MARIADB_DB;
+  const newDb = `${DB_SUFFIX}hash_${baseName}`;
   const tempFolder = process.env.MARIADB_TEMP_FOLDER;
   const localPath = path.join(folder, latestFile);
   const containerPath = path.posix.join(tempFolder, latestFile);
@@ -91,10 +65,6 @@ function restoreMariaDB() {
   execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
     stdio: "inherit", shell: shellOption
   });
-
-  const newDb = getUniqueDbName(container, "root", db, (name) =>
-    `mysql -u${user} -p${pass} -e "USE ${name}"`
-  );
 
   console.log(`📀 Creando base de datos ${newDb}`);
   execSync(`docker exec ${container} mysql -uroot -p${pass} -e "CREATE DATABASE ${newDb}"`, {
@@ -109,7 +79,6 @@ function restoreMariaDB() {
   console.log("✅ MariaDB restaurado en:", newDb);
 }
 
-
 function restoreMongo() {
   const folder = process.env.MONGO_BACKUP_FOLDER;
   const latestFile = fs.readdirSync(folder)
@@ -117,19 +86,16 @@ function restoreMongo() {
     .sort()
     .reverse()[0];
 
-  if (!latestFile) {
-    console.error("No MongoDB backup found.");
-    return;
-  }
+  if (!latestFile) return console.error("No MongoDB backup found.");
 
   const container = process.env.MONGO_CONTAINER;
   const db = process.env.MONGO_DB;
+  const newDb = `${DB_SUFFIX}hash_${db}`;
   const tempFolder = process.env.MONGO_TEMP_FOLDER;
   const localPath = path.join(folder, latestFile);
   const containerPath = path.posix.join(tempFolder, latestFile);
-  const newDb = `${db}_restored_${Date.now()}`;
 
-  console.log(`Copiando backup a contenedor: ${containerPath}`);
+  console.log(`📤 Copiando backup a contenedor: ${containerPath}`);
   execSync(`docker cp "${localPath}" ${container}:${containerPath}`, {
     stdio: "inherit", shell: shellOption
   });
@@ -139,7 +105,7 @@ function restoreMongo() {
     stdio: "inherit", shell: shellOption
   });
 
-  console.log("MongoDB restaurado en:", newDb);
+  console.log("✅ MongoDB restaurado en:", newDb);
 }
 
 function restoreRedis() {
@@ -149,10 +115,7 @@ function restoreRedis() {
     .sort()
     .reverse()[0];
 
-  if (!latestFile) {
-    console.error("No Redis backup found.");
-    return;
-  }
+  if (!latestFile) return console.error("No Redis backup found.");
 
   const container = process.env.REDIS_CONTAINER;
   const localPath = path.join(folder, latestFile);
