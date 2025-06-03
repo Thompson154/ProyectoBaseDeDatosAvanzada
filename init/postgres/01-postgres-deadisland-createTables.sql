@@ -46,7 +46,7 @@ CREATE TABLE misiones (
     mapa_id INT REFERENCES mapas(id)
 );
 
-
+-- Es como un logs de las misiones que hizo el jugador, TABLA LOG
 CREATE TABLE jugador_mision (
     jugador_id INT REFERENCES jugadores(id),
     mision_id INT REFERENCES misiones(id),
@@ -65,11 +65,11 @@ CREATE TABLE items (
 );
 
 CREATE TABLE inventario (
+    id SERIAL PRIMARY KEY,
     jugador_id INT REFERENCES jugadores(id),
     item_id INT REFERENCES items(id),
     cantidad INT DEFAULT 1,
-    durabilidad_actual INT,
-    PRIMARY KEY (jugador_id, item_id)
+    durabilidad_actual INT
 );
 
 

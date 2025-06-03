@@ -84,29 +84,86 @@ FROM generate_series(1, 500);
 
 
 -- Agregando datos de items a jugadores en la tabla de inventario
-CREATE OR REPLACE PROCEDURE asignar_items_a_jugadores()
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  i INT := 1;
-  jugador_id INT;
-  item_id INT;
-BEGIN
-  FOR jugador_id IN 1..3 LOOP
-    FOR i IN 1..30 LOOP
-      item_id := FLOOR(1 + random() * 11); -- IDs del 1 al 11
-      BEGIN
-        INSERT INTO inventario (jugador_id, item_id, cantidad, durabilidad_actual)
-        VALUES (jugador_id, item_id, 1, 100);
-      EXCEPTION WHEN OTHERS THEN
-        RAISE NOTICE 'Error al insertar item %, jugador %', item_id, jugador_id;
-        ROLLBACK;
-        RETURN;
-      END;
-    END LOOP;
-  END LOOP;
-END;
-$$;
+INSERT INTO inventario (jugador_id, item_id, cantidad, durabilidad_actual)
+SELECT
+  jugadores.jugador_id,
+  FLOOR(1 + random() * 33)::INT AS item_id,
+  1 AS cantidad,
+  100 AS durabilidad_actual
+FROM (
+  SELECT generate_series(1, 3) AS jugador_id -- 3 jugadores
+) AS jugadores,
+LATERAL (
+  SELECT generate_series(1, 20) AS item_repetido -- 30 ítems por jugador
+) AS repeticiones;
 
--- Ejecutar procedimiento
-CALL asignar_items_a_jugadores();
+
+-- Genera jefes zombies
+INSERT INTO jefe_zombi (enemigo_id, nombre_alias, habilidad_especial, recompensa_unica)
+SELECT
+    e.id AS enemigo_id,
+    'Alias_' || e.id AS nombre_alias,
+    CASE FLOOR(RANDOM() * 4 + 1)
+        WHEN 1 THEN 'Explosión ácida'
+        WHEN 2 THEN 'Regeneración rápida'
+        WHEN 3 THEN 'Grito paralizante'
+        ELSE 'Velocidad extrema'
+    END AS habilidad_especial,
+    CASE FLOOR(RANDOM() * 4 + 1)
+        WHEN 1 THEN 'Espada legendaria'
+        WHEN 2 THEN 'Katana Dragon Rojo'
+        WHEN 3 THEN 'Inyección mutante'
+        ELSE 'Paquete de suministros'
+    END AS recompensa_unica
+FROM (
+    SELECT id FROM enemigos WHERE es_jefe = true ORDER BY RANDOM() LIMIT 15
+) AS e;
+
+
+
+
+-- genera codigo de misiones
+INSERT INTO misiones (titulo, descripcion, tipo, nivel_recomendado, recompensa, mapa_id)
+SELECT
+  'Misión #' || s.i AS titulo,
+  'Esta es una misión generada automáticamente con ID ' || s.i AS descripcion,
+  CASE FLOOR(RANDOM() * 4 + 1)
+    WHEN 1 THEN 'Principal'
+    WHEN 2 THEN 'Secundaria'
+    WHEN 3 THEN 'Desafío'
+    ELSE 'Exploración'
+  END AS tipo,
+  FLOOR(RANDOM() * 10 + 1) AS nivel_recomendado,
+  CASE FLOOR(RANDOM() * 5 + 1)
+    WHEN 1 THEN 'XP + Arma rara'
+    WHEN 2 THEN 'Dinero + Consumibles'
+    WHEN 3 THEN 'Llave secreta'
+    WHEN 4 THEN 'Objeto legendario'
+    ELSE 'Acceso a zona nueva'
+  END AS recompensa,
+  (SELECT id FROM mapas ORDER BY RANDOM() LIMIT 1) AS mapa_id
+FROM generate_series(1, 50) AS s(i)
+WHERE EXISTS (SELECT 1 FROM mapas);
+
+-- Genera datos de jugador mision
+INSERT INTO jugador_mision (jugador_id, mision_id, estado, fecha_inicio, fecha_fin)
+SELECT DISTINCT ON (jugador_id, mision_id)
+  j.id AS jugador_id,
+  m.id AS mision_id,
+  CASE FLOOR(RANDOM() * 3 + 1)
+      WHEN 1 THEN 'en progreso'
+      WHEN 2 THEN 'completada'
+      ELSE 'fallida'      -- trigger de insertar un jugador_mision --- UDPADTE de esto 
+  END AS estado,
+  fecha_ini,
+  fecha_ini + (INTERVAL '1 hour' * FLOOR(RANDOM() * 24 + 1)) AS fecha_fin
+FROM (
+    SELECT id FROM jugadores ORDER BY RANDOM() LIMIT 100
+) AS j,
+LATERAL (
+    SELECT id FROM misiones ORDER BY RANDOM() LIMIT 100
+) AS m,
+LATERAL (
+    SELECT NOW() - (INTERVAL '1 day' * FLOOR(RANDOM() * 30 + 1)) AS fecha_ini
+) AS f
+LIMIT 100;

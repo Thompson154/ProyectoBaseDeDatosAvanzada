@@ -35,7 +35,7 @@ CREATE TABLE drops (
     item_id INT,
     probabilidad DECIMAL(5,2),
     PRIMARY KEY (enemigo_id, item_id)
-    -- FOREIGN KEY eliminado: enemigos e items están en PostgreSQL
+    -- FOREIGN KEY eliminado: enemigos e items están en PostgreSQL -> Unir en el BigData
 );
 
 CREATE TABLE progreso_habilidad (
@@ -55,46 +55,8 @@ CREATE TABLE recompensa_evento (
     recompensa TEXT,
     fecha_entrega DATETIME,
     FOREIGN KEY (evento_id) REFERENCES eventos_zombi(id)
-    -- jugador_id sin FK: jugadores está en PostgreSQL
-);
-
-
-
--- DELIMITER $$
-
--- DROP PROCEDURE IF EXISTS insertar_recompensas_evento $$
--- CREATE PROCEDURE insertar_recompensas_evento()
--- BEGIN
---     DECLARE evento_id INT;
---     DECLARE jugador_id INT;
---     DECLARE recompensas INT;
---     DECLARE i INT;
-
---     SET evento_id = 1;
-
---     WHILE evento_id <= 5 DO
---         SET recompensas = FLOOR(1 + RAND() * 3); -- entre 1 y 3 recompensas por evento
---         SET i = 1;
-
---         WHILE i <= recompensas DO
---             SET jugador_id = FLOOR(1 + RAND() * 3); -- jugadores 1 a 3
---             INSERT INTO recompensa_evento (evento_id, jugador_id, recompensa, fecha_entrega)
---             VALUES (
---                 evento_id,
---                 jugador_id,
---                 ELT(FLOOR(1 + RAND() * 5), 'Carta de Habilidad', 'Granada', 'Katana rara', 'Arma Corta', 'Rifle'),
---                 NOW() - INTERVAL FLOOR(RAND() * 1000) MINUTE
---             );
---             SET i = i + 1;
---         END WHILE;
-
---         SET evento_id = evento_id + 1;
---     END WHILE;
--- END $$
--- DELIMITER ;
-
--- -- Llamar al procedimiento
--- CALL insertar_recompensas_evento();
+    -- jugador_id -> En big data unir con la tabla jugador de postgress
+)
 
 
 
