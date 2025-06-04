@@ -1,4 +1,4 @@
-# Proyecto Base de Datos Avanzada - Dead Island 2
+# Proyecto Base de Datos Avanzada - Videojuego (Base de Inspiracion DeadIsland2)
 
 ## Descripción
 Este proyecto implementa un sistema de bases de datos distribuido para el juego Dead Island 2, utilizando múltiples motores de bases de datos para optimizar diferentes tipos de operaciones y datos.
@@ -12,7 +12,7 @@ El proyecto utiliza una arquitectura multi-base de datos con Docker Compose para
 - **PostgreSQL**: Maneja las tablas estructurales y relacionales del juego [2](#0-1) 
 - **MariaDB**: Gestiona las tablas transaccionales y logs de combate [3](#0-2) 
 - **MongoDB**: Base de datos NoSQL para datos no estructurados
-- **Redis**: Cache en memoria para datos de alta velocidad
+- **Redis**: Cache en memoria para datos de alta velocidad como un chat en vivo
 
 ## Estructura del Proyecto
 
@@ -22,15 +22,26 @@ El proyecto utiliza una arquitectura multi-base de datos con Docker Compose para
 │   ├── postgres/              # Scripts de inicialización PostgreSQL
 │   │   ├── 01-postgres-deadisland-createTables.sql
 │   │   ├── 02-postgres-createData.sql
-│   │   ├── 05-postgres-triggers.sql
-│   │   └── 06-postgres-SPs.sql
+│   │   ├── 03-postgres-vistas.sql
+|   |   ├── 04-postgres-particiones.sql
+|   |   ├── 05-postgres-SPs.sql
+│   │   ├── 06-postgres-triggers.sql
+│   │   ├── 07-postgres-functions.sql
+|   |   ├── 08-postgres-indices.sql
+│   │   └── 09-postgres-ofuscamiento.sql
 │   └── mariadb/               # Scripts de inicialización MariaDB
-│       ├── 01-mariadb-deadisland-createTables.sql
-│       ├── 02-mariadb-createData.sql
-│       └── 05-mariadb-SPs.sql
+│   │   ├── 01-mariadb-deadisland-createTables.sql
+│   │   ├── 02-mariadb-createData.sql
+│   │   ├── 03-mariadb-vistas.sql
+|   |   ├── 04-mariadb-particiones.sql
+|   |   ├── 05-mariadb-SPs.sql
+│   │   ├── 06-mariadb-triggers.sql
+│   │   ├── 07-mariadb-functions.sql
+|   |   ├── 08-mariadb-indices.sql
+│   │   └── 09-mariadb-ofuscamiento.sql
 ├── backupDeadIsland2/         # Scripts y archivos de respaldo
-├── insertar_recompensas_evento.sql
-└── restore (1).js            # Script de restauración
+└── package.json  # Aca se encuentran script para hacelerar el levantamiento del docker
+
 ```
 
 ## Funcionalidades Implementadas
@@ -58,18 +69,54 @@ El proyecto utiliza una arquitectura multi-base de datos con Docker Compose para
 ### Variables de Entorno
 Crear un archivo `.env` con las siguientes variables:
 ```env
-POSTGRES_USER=tu_usuario_pg
-POSTGRES_PASSWORD=tu_password_pg
-POSTGRES_DB=deadisland2
-MYSQL_ROOT_PASSWORD=tu_root_password
-MYSQL_DATABASE=deadisland2
-MYSQL_USER=tu_usuario_mysql
-MYSQL_PASSWORD=tu_password_mysql
+# PostgreSQL
+POSTGRES_USER=tu_user
+POSTGRES_PASSWORD=tu_password
+POSTGRES_DB=videojuego
+
+# MariaDB
+MYSQL_ROOT_PASSWORD=tu_password
+MYSQL_DATABASE=videojuego
+MYSQL_USER=tu_user
+MYSQL_PASSWORD=tu_password
+
+
+# PostgreSQL
+PG_CONTAINER=postgres
+PG_USER=tu_user
+PG_DB=videojuego
+PG_TEMP_FOLDER=/tmp
+PG_BACKUP_FOLDER=./backupDeadIsland2/backups/postgres
+
+# MariaDB
+MARIADB_CONTAINER=mariadb
+MARIADB_USER=tu_user
+MARIADB_PASSWORD=tu_password
+MARIADB_DB=videojuego
+MARIADB_TEMP_FOLDER=/tmp
+MARIADB_BACKUP_FOLDER=./backupDeadIsland2/backups/mariadb
+
+# MongoDB
+MONGO_CONTAINER=mongo
+MONGO_DB=mongo
+MONGO_TEMP_FOLDER=/tmp
+MONGO_BACKUP_FOLDER=./backupDeadIsland2/backups/mongo
+
+# Redis
+REDIS_CONTAINER=redis
+REDIS_TEMP_FOLDER=/data
+REDIS_BACKUP_FOLDER=./backupDeadIsland2/backups/redis
+
 ```
 
 ### Iniciar el Sistema
 ```bash
-docker-compose up -d
+    "dev": Para levantar el proyecto el docker
+    "stop": Para apagar los docker
+    "stop2": Para matar a los docker
+    "backup": Para empezar con el backup
+    "restore": Para emepzar el restore
+    "rmvolumen": Para remover todos los volmenes que se crearon anteriormente
 ```
 
 ### Acceso a las Bases de Datos
@@ -77,17 +124,6 @@ docker-compose up -d
 - **MariaDB**: Puerto 3306
 - **MongoDB**: Puerto 27017
 - **Redis**: Puerto 6379
-
-## Uso
-
-### Scripts de Inicialización
-Los scripts de inicialización se ejecutan automáticamente al levantar los contenedores por primera vez, creando todas las tablas, datos de prueba, triggers y procedimientos almacenados necesarios.
-
-### Restauración de Respaldos
-Para restaurar un respaldo de PostgreSQL:
-```bash
-node "restore (1).js"
-```
 
 ## Modelo de Datos
 
@@ -111,6 +147,3 @@ node "restore (1).js"
 - Procedimientos almacenados para operaciones complejas
 - Sistema automatizado de respaldos
 - Arquitectura escalable con Docker
-
-## Notes
-Este proyecto demuestra el uso de múltiples sistemas de gestión de bases de datos en una arquitectura distribuida, donde cada motor se especializa en un tipo específico de datos y operaciones. PostgreSQL maneja las relaciones complejas del juego, mientras que MariaDB se encarga de los logs y transacciones de alta frecuencia.
