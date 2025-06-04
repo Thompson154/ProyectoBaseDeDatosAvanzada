@@ -6,7 +6,7 @@ require("dotenv").config();
 const isWindows = process.platform === "win32";
 const shellOption = isWindows ? undefined : "/bin/bash";
 
-const DB_SUFFIX = "7";
+const DB_SUFFIX = "8";
 
 function restorePostgres() {
   const folder = process.env.PG_BACKUP_FOLDER;
