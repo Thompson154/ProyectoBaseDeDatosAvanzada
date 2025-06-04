@@ -34,3 +34,18 @@
 --     END IF;
 -- END //
 -- DELIMITER ;
+
+-- Actualiza el resultado del combate
+-- DELIMITER $$
+
+-- CREATE TRIGGER trg_log_combate_al_actualizar_resultado
+-- AFTER UPDATE ON partidas
+-- FOR EACH ROW
+-- BEGIN
+--     IF NEW.resultado <> OLD.resultado THEN
+--         INSERT INTO log_combate(jugador_id, enemigo_id, accion, valor, momento, partida_id)
+--         VALUES (NEW.jugador_id, NULL, CONCAT('Resultado actualizado a ', NEW.resultado), 0, NOW(), NEW.id);
+--     END IF;
+-- END$$
+
+-- DELIMITER ;

@@ -62,3 +62,27 @@
 --     END IF;
 -- END //
 -- DELIMITER ;
+
+
+-- Podemos insertar un nuevo evento zombie enviando en los parametros donde este se crea el evento zombie y este se relaciona insertando
+-- en la tabla de partidas 
+-- DELIMITER $$
+
+-- CREATE PROCEDURE insertar_evento_con_partida(
+--     IN p_nombre_evento VARCHAR(100),
+--     IN p_tipo_evento VARCHAR(30),
+--     IN p_jugador_id INT
+-- )
+-- BEGIN
+--     DECLARE v_evento_id INT;
+--     INSERT INTO eventos_zombi(nombre_evento, tipo_evento, fecha_inicio, fecha_fin, activo)
+--     VALUES (p_nombre_evento, p_tipo_evento, NOW(), NOW() + INTERVAL 2 DAY, TRUE);
+
+--     SET v_evento_id = LAST_INSERT_ID();
+
+--     -- Crear partida relacionada
+--     INSERT INTO partidas(jugador_id, fecha_inicio, fecha_fin, resultado, enemigos_derrotados, evento_id)
+--     VALUES (p_jugador_id, NOW(), NOW() + INTERVAL 30 MINUTE, 'pendiente', 0, v_evento_id);
+-- END$$
+
+-- DELIMITER ;

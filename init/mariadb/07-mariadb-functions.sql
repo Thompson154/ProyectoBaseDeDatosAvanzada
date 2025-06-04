@@ -15,3 +15,20 @@
 --     RETURN IF(exp_necesaria < 0, 0, exp_necesaria);
 -- END //
 -- DELIMITER ;
+
+
+-- Calcula el total de enemmigos
+-- DELIMITER $$
+
+-- CREATE FUNCTION total_enemigos_derrotados(p_jugador_id INT)
+-- RETURNS INT
+-- DETERMINISTIC
+-- BEGIN
+--     DECLARE total INT;
+--     SELECT SUM(enemigos_derrotados) INTO total
+--     FROM partidas
+--     WHERE jugador_id = p_jugador_id;
+--     RETURN IFNULL(total, 0);
+-- END$$
+
+-- DELIMITER ;
