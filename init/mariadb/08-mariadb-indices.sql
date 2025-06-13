@@ -1,4 +1,6 @@
-CREATE INDEX idx_eventos_zombi_tipo_evento ON eventos_zombi(tipo_evento);
-CREATE INDEX idx_eventos_zombi_activo ON eventos_zombi(activo);
-CREATE INDEX idx_log_combate_momento ON log_combate(momento);
-CREATE INDEX idx_progreso_habilidad_habilidad ON progreso_habilidad(habilidad);
+CREATE INDEX idx_items_rarity     ON items(rarity_id);
+CREATE INDEX idx_missions_map     ON missions(map_id);
+CREATE INDEX idx_ztypes_damage_hp ON zombie_types(base_damage,base_hp);
+CREATE INDEX idx_skill_name       ON skills(skill_name);
+CREATE INDEX idx_mission_type     ON missions_types_map(type_id);
+CREATE INDEX idx_ztype_ability    ON zombie_type_abilities(ability_id);

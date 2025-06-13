@@ -1,85 +1,68 @@
--- Colocar todas las FUNCIONES
+/* F1: umbral de level-up */
+CREATE FUNCTION fn_level_threshold(lvl INT) RETURNS INT
+LANGUAGE sql IMMUTABLE AS
+$$ SELECT 1000 * lvl; $$;
 
--- Funcion para obtener la dificultad del mapa
-CREATE OR REPLACE FUNCTION obtener_dificultad_mapa(p_id INT) RETURNS VARCHAR(20) AS $$
+/* F2: sumar XP y aplicar level-up */
+CREATE FUNCTION fn_add_xp(p_player INT, p_xp INT) RETURNS VOID
+LANGUAGE plpgsql AS $$
 BEGIN
-    RETURN (SELECT dificultad FROM mapas WHERE id = p_id);
-END;
-$$ LANGUAGE plpgsql;
+  UPDATE player_stats
+  SET xp = xp + p_xp
+  WHERE player_id = p_player;
 
--- Funcion para ver si si un mapa es dificil
-CREATE OR REPLACE FUNCTION es_mapa_dificil(p_id INT) RETURNS BOOLEAN AS $$
-BEGIN
-    RETURN (SELECT dificultad = 'Difícil' FROM mapas WHERE id = p_id);
-END;
-$$ LANGUAGE plpgsql;
+  PERFORM fn_check_level_up(p_player);
+END$$;
 
---Funcion para sugerir_misiones
-CREATE OR REPLACE FUNCTION sugerir_misiones(p_jugador_id INT)
-RETURNS TABLE (mision_id INT, titulo VARCHAR(100), nivel_recomendado INT, dificultad_mapa VARCHAR(20)) AS $$
+/* F3: chequeo y subida de nivel */
+CREATE FUNCTION fn_check_level_up(p_player INT) RETURNS VOID
+LANGUAGE plpgsql AS $$
 DECLARE
-    nivel_jugador INT;
+  cur_lvl  INT;
+  cur_xp   INT;
 BEGIN
-    SELECT nivel INTO nivel_jugador
-    FROM jugadores
-    WHERE id = p_jugador_id;
+  SELECT level, xp INTO cur_lvl, cur_xp
+  FROM   player_stats
+  WHERE  player_id = p_player;
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Jugador con ID % no encontrado', p_jugador_id;
-    END IF;
+  WHILE cur_xp >= fn_level_threshold(cur_lvl) LOOP
+    cur_xp := cur_xp - fn_level_threshold(cur_lvl);
+    cur_lvl := cur_lvl + 1;
+  END LOOP;
 
-    IF nivel_jugador IS NULL THEN
-        RAISE EXCEPTION 'El nivel del jugador con ID % es nulo', p_jugador_id;
-    END IF;
+  UPDATE player_stats
+  SET level = cur_lvl, xp = cur_xp
+  WHERE player_id = p_player;
+END$$;
 
-    RETURN QUERY
-    SELECT m.id, m.titulo, m.nivel_recomendado, mp.dificultad
-    FROM misiones m
-    JOIN mapas mp ON m.mapa_id = mp.id
-    WHERE m.nivel_recomendado BETWEEN GREATEST(1, nivel_jugador - 2) AND nivel_jugador + 2
-    AND NOT EXISTS (
-        SELECT 1
-        FROM jugador_mision jm
-        WHERE jm.mision_id = m.id
-        AND jm.jugador_id = p_jugador_id
-        AND jm.estado = 'completada'
-    )
-    ORDER BY m.nivel_recomendado;
-END;
-$$ LANGUAGE plpgsql;
-
-
---Funcion para contar jugadores activos
-CREATE OR REPLACE FUNCTION contar_jugadores_activos()
-RETURNS INT AS $$
+/* F4: bajar HP de jugador */
+CREATE FUNCTION fn_damage_player() RETURNS TRIGGER AS $$
 BEGIN
-    RETURN (SELECT COUNT(*) FROM jugadores WHERE estado = 'activo');
-END;
-$$ LANGUAGE plpgsql;
+  UPDATE player_stats
+  SET hp = GREATEST(hp - NEW.amount, 0)
+  WHERE player_id = NEW.target_id;
+  RETURN NEW;
+END$$ LANGUAGE plpgsql;
 
-
---Funcion para obtener recompensas de mision
-CREATE OR REPLACE FUNCTION obtener_recompensa_mision(p_mision_id INT)
-RETURNS TEXT AS $$
-BEGIN
-    RETURN (SELECT recompensa FROM misiones WHERE id = p_mision_id);
-END;
-$$ LANGUAGE plpgsql;
-
-
-
--- Total de enemigos derrotados por un jugador en todas sus partidas
-CREATE OR REPLACE FUNCTION total_enemigos_derrotados_por_jugador(p_jugador_id INT)
-RETURNS INT AS $$
+/* F5: bajar HP de zombi y otorgar XP si muere */
+CREATE FUNCTION fn_damage_zombie() RETURNS TRIGGER AS $$
 DECLARE
-    total INT;
+  hp_left INT;
 BEGIN
-    SELECT COALESCE(SUM(enemigos_derrotados), 0)
-    INTO total
-    FROM partidas
-    WHERE jugador_id = p_jugador_id;
+  UPDATE session_zombies
+  SET current_hp = current_hp - NEW.amount
+  WHERE zombie_id = NEW.target_id
+  RETURNING current_hp INTO hp_left;
 
-    RETURN total;
-END;
-$$ LANGUAGE plpgsql;
+  IF hp_left <= 0 THEN
+    INSERT INTO kill_logs(player_id,zombie_type,session_id)
+    SELECT NEW.player_id, type_id, session_id
+    FROM   session_zombies
+    WHERE  zombie_id = NEW.target_id;
 
+    PERFORM fn_add_xp(NEW.player_id, 250);  -- recompensa fija
+  END IF;
+  RETURN NEW;
+END$$ LANGUAGE plpgsql;
+
+-- Falta F6

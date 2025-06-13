@@ -59,7 +59,7 @@ function backupMongo() {
   });
 }
 
-// Redis Backup falta q haga el snapshot
+// Redis Backup falta q haga el snapshot ojito
 function backupRedis() {
   const fileName = `dump_deadIsland2${fecha()}.rdb`;
   const cpCmd = `docker cp ${process.env.REDIS_CONTAINER}:${process.env.REDIS_TEMP_FOLDER}/dump.rdb ${process.env.REDIS_BACKUP_FOLDER}/${fileName}`;
@@ -68,7 +68,7 @@ function backupRedis() {
     console.log("Redis backup done:", fileName);
   });
 }
-// Por mientras es de un minuto
+
 const job = new cron.CronJob("*/1 * * * *", () => {
   console.log("Iniciando backups a las", new Date().toLocaleString());
   backupPostgres();

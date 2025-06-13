@@ -1,88 +1,87 @@
-
--- PostgreSQL - Dead Island 2 - Tablas estructurales con relaciones integradas
-
-
-
-CREATE TABLE jugadores (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL,
-    nivel INT DEFAULT 1,
-    clase VARCHAR(30),
-    experiencia INT DEFAULT 0,
-    estado VARCHAR(20) DEFAULT 'activo',
-    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+/* 1. Usuarios ---------------------------------------------------------- */
+CREATE TABLE users (
+    user_id    SERIAL PRIMARY KEY,
+    email      VARCHAR(255) NOT NULL UNIQUE,
+    username   VARCHAR(40)  NOT NULL UNIQUE,
+    password   VARCHAR(60)  NOT NULL,          -- DEMO: texto plano
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-
--- Lo de abajo se borra si no funciona la prueba
-CREATE TABLE usuarios (
-    id SERIAL PRIMARY KEY,
-    jugador_id INT UNIQUE REFERENCES jugadores(id) ON DELETE CASCADE,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    correo VARCHAR(100) NOT NULL UNIQUE,
-    password TEXT NOT NULL,
-    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-----Lo de arriba es prueba si no funciona se borra
-
-
-CREATE TABLE mapas (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL,
-    zona VARCHAR(50),
-    dificultad VARCHAR(20)
+/* 2. Jugadores (1-a-1 con users) -------------------------------------- */
+CREATE TABLE players (
+    player_id  SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE enemigos (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(50),
-    tipo VARCHAR(30),
-    nivel INT,
-    vida INT,
-    es_jefe BOOLEAN DEFAULT FALSE,
-    mapa_id INT REFERENCES mapas(id)
+/* 3. Estadísticas rápidas -------------------------------------------- */
+CREATE TABLE player_stats (
+    player_id INTEGER PRIMARY KEY REFERENCES players(player_id) ON DELETE CASCADE,
+    hp        INTEGER NOT NULL DEFAULT 100,
+    stamina   INTEGER NOT NULL DEFAULT 100,
+    level     INTEGER NOT NULL DEFAULT 1,
+    xp        BIGINT  NOT NULL DEFAULT 0
+);
+CREATE INDEX idx_player_stats_rank ON player_stats (level DESC, xp DESC);
+
+/* 4. Inventarios ------------------------------------------------------ */
+CREATE TABLE inventories (
+    inventory_id SERIAL PRIMARY KEY,
+    player_id    INTEGER NOT NULL UNIQUE REFERENCES players(player_id) ON DELETE CASCADE,
+    capacity     INTEGER NOT NULL DEFAULT 30
 );
 
-CREATE TABLE jefe_zombi (
-    id SERIAL PRIMARY KEY,
-    enemigo_id INT REFERENCES enemigos(id),
-    nombre_alias VARCHAR(50),
-    habilidad_especial TEXT,
-    recompensa_unica TEXT
+/* 5. Objetos dentro del inventario ----------------------------------- */
+CREATE TABLE inventory_items (
+    inventory_id INTEGER NOT NULL REFERENCES inventories(inventory_id) ON DELETE CASCADE,
+    item_id      INTEGER NOT NULL,           -- catálogo en MariaDB
+    quantity     INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (inventory_id, item_id)
 );
 
-CREATE TABLE misiones (
-    id SERIAL PRIMARY KEY,
-    titulo VARCHAR(100),
-    descripcion TEXT,
-    tipo VARCHAR(30),
-    nivel_recomendado INT,
-    recompensa TEXT,
-    mapa_id INT REFERENCES mapas(id)
+/* 6. Habilidades desbloqueadas --------------------------------------- */
+CREATE TABLE player_skills (
+    player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+    skill_id  INTEGER NOT NULL,              -- catálogo en MariaDB
+    unlocked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (player_id, skill_id)
 );
 
--- Es como un logs de las misiones que hizo el jugador, TABLA LOG
-CREATE TABLE jugador_mision (
-    jugador_id INT REFERENCES jugadores(id),
-    mision_id INT REFERENCES misiones(id),
-    estado VARCHAR(20),
-    fecha_inicio TIMESTAMP,
-    fecha_fin TIMESTAMP,
-    PRIMARY KEY (jugador_id, mision_id)
+/* 7. Sesiones de mapa ------------------------------------------------- */
+CREATE TABLE map_sessions (
+    session_id SERIAL PRIMARY KEY,
+    map_id     INTEGER NOT NULL,             -- catálogo en MariaDB
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_night   BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE items (
-    id SERIAL PRIMARY KEY,
-    nombre VARCHAR(50),
-    tipo VARCHAR(30),
-    rareza VARCHAR(20),
-    durabilidad_max INT
+/* 8. Jugadores dentro de la sesión ----------------------------------- */
+CREATE TABLE map_players (
+    session_id INTEGER NOT NULL REFERENCES map_sessions(session_id) ON DELETE CASCADE,
+    player_id  INTEGER NOT NULL REFERENCES players(player_id)      ON DELETE CASCADE,
+    joined_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    left_at    TIMESTAMPTZ,
+    PRIMARY KEY (session_id, player_id)
+);
+CREATE INDEX idx_map_players_player ON map_players (player_id);
+
+/* 9. Progreso de misiones -------------------------------------------- */
+CREATE TABLE player_missions (
+    player_id  INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+    mission_id INTEGER NOT NULL,             -- catálogo en MariaDB
+    state      VARCHAR(20) NOT NULL DEFAULT 'active',
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at TIMESTAMPTZ,
+    PRIMARY KEY (player_id, mission_id)
 );
 
-CREATE TABLE inventario (
-    id SERIAL PRIMARY KEY,
-    jugador_id INT REFERENCES jugadores(id),
-    item_id INT REFERENCES items(id),
-    cantidad INT DEFAULT 1,
-    durabilidad_actual INT
+/* 10. Zombis activos en cada sesión ---------------------------------- */
+CREATE TABLE session_zombies (
+    zombie_id  SERIAL PRIMARY KEY,
+    session_id INTEGER NOT NULL REFERENCES map_sessions(session_id) ON DELETE CASCADE,
+    type_id    INTEGER NOT NULL,             -- catálogo en MariaDB
+    current_hp INTEGER NOT NULL,
+    spawned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_enraged BOOLEAN NOT NULL DEFAULT FALSE
 );
+CREATE INDEX idx_session_zombies_session ON session_zombies (session_id);

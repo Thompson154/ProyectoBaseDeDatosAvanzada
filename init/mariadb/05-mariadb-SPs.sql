@@ -1,88 +1,43 @@
--- ----------------- SPs para MariaDB------------------------
+DELIMITER //
 
--- ---- SP para generar Combo de Combate------------------
--- DELIMITER //
--- CREATE PROCEDURE generar_combo_combate(
---     IN p_jugador_id INT,
---     IN p_enemigo_id INT,
---     IN p_arma_id INT,
---     IN p_num_combates INT
--- )
--- BEGIN
---     DECLARE i INT DEFAULT 0;
---     WHILE i < p_num_combates DO
---         INSERT INTO log_combate (jugador_id, enemigo_id, arma_id, dano_infligido, dano_recibido, fecha_combate)
---         VALUES (p_jugador_id, p_enemigo_id, p_arma_id, 100, 20, NOW());
---         SET i = i + 1;
---     END WHILE;
---     IF p_num_combates >= 3 THEN
---         INSERT INTO progreso_habilidad (jugador_id, habilidad_id, nivel, experiencia)
---         VALUES (p_jugador_id, p_arma_id, 1, 100)
---         ON DUPLICATE KEY UPDATE experiencia = experiencia + 100;
---     END IF;
--- END //
--- DELIMITER ;
+/* SP1: registrar arma */
+CREATE PROCEDURE sp_add_weapon (p_name VARCHAR(60), p_rarity INT, p_dmg INT, p_dur INT)
+BEGIN
+  INSERT INTO items(rarity_id,name,base_damage,max_durability)
+  VALUES (p_rarity,p_name,p_dmg,p_dur);
+END;
 
--- -------- SP para mejorar Arma con Drops
--- DELIMITER //
--- CREATE PROCEDURE mejorar_arma(
---     IN p_jugador_id INT,
---     IN p_drop_arma_id INT,
---     IN p_drop_material_id INT,
---     IN p_new_item_id INT
--- )
--- BEGIN
---     DECLARE drop_count INT;
---     SELECT COUNT(*) INTO drop_count
---     FROM drops
---     WHERE jugador_id = p_jugador_id AND id IN (p_drop_arma_id, p_drop_material_id);
---     IF drop_count = 2 THEN
---         UPDATE drops SET item_id = p_new_item_id WHERE id = p_drop_arma_id;
---         DELETE FROM drops WHERE id = p_drop_material_id;
---     ELSE
---         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Drops inválidos para mejora';
---     END IF;
--- END //
--- DELIMITER ;
+/* SP2: asignar habilidad a tipo de zombi */
+CREATE PROCEDURE sp_assign_ability (p_type INT,p_ab INT)
+BEGIN
+  REPLACE INTO zombie_type_abilities(type_id,ability_id) VALUES (p_type,p_ab);
+END;
 
+/* SP3: crear misión */
+CREATE PROCEDURE sp_create_mission (p_map INT,p_name VARCHAR(80),p_json JSON)
+BEGIN
+  INSERT INTO missions(map_id,mission_name,target_json) VALUES (p_map,p_name,p_json);
+END;
 
--- -- SP de otorgar_recompensas_eventos
--- DELIMITER //
--- CREATE PROCEDURE otorgar_recompensas_eventos(IN p_jugador_id INT, IN p_item_id INT)
--- BEGIN
---     DECLARE conteo_eventos INT;
---     SELECT COUNT(*) INTO conteo_eventos
---     FROM recompensa_evento
---     WHERE jugador_id = p_jugador_id;
---     IF conteo_eventos >= 3 THEN
---         INSERT INTO drops (item_id, jugador_id, evento_id, fecha_drop)
---         SELECT p_item_id, p_jugador_id, MAX(evento_id), NOW()
---         FROM recompensa_evento
---         WHERE jugador_id = p_jugador_id;
---     END IF;
--- END //
--- DELIMITER ;
+/* SP4: rareza label */
+CREATE PROCEDURE sp_get_rarity_label (p_rarity INT, OUT p_label VARCHAR(50))
+BEGIN
+  SET p_label = fn_rarity_label(p_rarity);
+END;
 
+/* SP5: stats de arma */
+CREATE PROCEDURE sp_weapon_stats (p_item INT)
+BEGIN
+  SELECT i.name,r.rarity_name,i.base_damage,i.max_durability
+  FROM items i JOIN rarities r USING(rarity_id) WHERE i.item_id=p_item;
+END;
 
--- Podemos insertar un nuevo evento zombie enviando en los parametros donde este se crea el evento zombie y este se relaciona insertando
--- en la tabla de partidas 
--- DELIMITER $$
-
--- CREATE PROCEDURE insertar_evento_con_partida(
---     IN p_nombre_evento VARCHAR(100),
---     IN p_tipo_evento VARCHAR(30),
---     IN p_jugador_id INT
--- )
--- BEGIN
---     DECLARE v_evento_id INT;
---     INSERT INTO eventos_zombi(nombre_evento, tipo_evento, fecha_inicio, fecha_fin, activo)
---     VALUES (p_nombre_evento, p_tipo_evento, NOW(), NOW() + INTERVAL 2 DAY, TRUE);
-
---     SET v_evento_id = LAST_INSERT_ID();
-
---     -- Crear partida relacionada
---     INSERT INTO partidas(jugador_id, fecha_inicio, fecha_fin, resultado, enemigos_derrotados, evento_id)
---     VALUES (p_jugador_id, NOW(), NOW() + INTERVAL 30 MINUTE, 'pendiente', 0, v_evento_id);
--- END$$
-
--- DELIMITER ;
+/* SP6: loot aleatorio según rareza */
+CREATE PROCEDURE sp_random_loot (p_rarity INT, OUT p_item INT)
+BEGIN
+  SELECT item_id INTO p_item
+  FROM items WHERE rarity_id=p_rarity
+  ORDER BY RAND() LIMIT 1;
+END;
+//
+DELIMITER ;

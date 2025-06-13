@@ -1,144 +1,71 @@
--- ACA CARGAR LOS TRIGGERS ---------------------------------------------------------------------
+/* T1: daño al jugador */
+CREATE TRIGGER trg_player_damage
+AFTER INSERT ON combat_logs
+WHEN (NEW.target_type='player' AND NEW.action='damage')
+FOR EACH ROW EXECUTE FUNCTION fn_damage_player();
 
---Trigger para ver la durabilidad del arma 
-CREATE OR REPLACE FUNCTION reducir_durabilidad()
-RETURNS TRIGGER AS $$
+/* T2: daño al zombi */
+CREATE TRIGGER trg_zombie_damage
+AFTER INSERT ON combat_logs
+WHEN (NEW.target_type='zombie' AND NEW.action='damage')
+FOR EACH ROW EXECUTE FUNCTION fn_damage_zombie();
+
+/* T3: level-up cuando se actualiza xp */
+CREATE FUNCTION fn_level_up_trigger() RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.durabilidad_actual <= OLD.durabilidad_actual AND NEW.durabilidad_actual < 20 THEN
-        RAISE NOTICE 'Advertencia: La durabilidad del ítem % para el jugador % está baja (%).', NEW.item_id, NEW.jugador_id, NEW.durabilidad_actual;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+  PERFORM fn_check_level_up(NEW.player_id);
+  RETURN NEW;
+END$$ LANGUAGE plpgsql;
 
-CREATE or replace TRIGGER trigger_reducir_durabilidad
-BEFORE UPDATE ON inventario
-FOR EACH ROW
-EXECUTE FUNCTION reducir_durabilidad();
+CREATE TRIGGER trg_check_lvl
+AFTER UPDATE OF xp ON player_stats
+FOR EACH ROW EXECUTE FUNCTION fn_level_up_trigger();
 
-
--- Validacion si el nombre de algun mapa no este vacio
-CREATE OR REPLACE FUNCTION validar_nombre_mapa() RETURNS TRIGGER AS $$
+/* T4: capacidad de inventario */
+CREATE FUNCTION fn_inv_capacity() RETURNS TRIGGER AS $$
+DECLARE total INT;
 BEGIN
-    IF TRIM(NEW.nombre) = '' THEN
-        RAISE EXCEPTION 'El nombre del mapa no puede estar vacío';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+  SELECT COALESCE(SUM(quantity),0)
+  INTO   total
+  FROM   inventory_items
+  WHERE  inventory_id = NEW.inventory_id;
 
-CREATE TRIGGER before_mapa_insert
-BEFORE INSERT ON mapas
-FOR EACH ROW
-EXECUTE FUNCTION validar_nombre_mapa();
+  IF total + NEW.quantity > (SELECT capacity FROM inventories WHERE inventory_id=NEW.inventory_id) THEN
+     RAISE EXCEPTION 'Exceeds inventory capacity';
+  END IF;
+  RETURN NEW;
+END$$ LANGUAGE plpgsql;
 
--- Dejar mensaje cuando se actualice un mapa
-CREATE OR REPLACE FUNCTION log_actualizacion_mapa() RETURNS TRIGGER AS $$
+CREATE TRIGGER trg_inv_capacity
+BEFORE INSERT OR UPDATE ON inventory_items
+FOR EACH ROW EXECUTE FUNCTION fn_inv_capacity();
+
+/* T5: reduce durabilidad del arma usada */
+CREATE FUNCTION fn_decrease_durability() RETURNS TRIGGER AS $$
 BEGIN
-    RAISE NOTICE 'Mapa % actualizado a dificultad %', OLD.nombre, NEW.dificultad;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+  IF NEW.weapon_id IS NOT NULL THEN
+     UPDATE inventory_items
+     SET quantity = quantity       -- placeholder; durabilidad sería otra col.
+     WHERE item_id = NEW.weapon_id
+       AND inventory_id = (SELECT inventory_id FROM inventories i WHERE i.player_id = NEW.player_id);
+  END IF;
+  RETURN NEW;
+END$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER after_mapa_update
-AFTER UPDATE ON mapas
-FOR EACH ROW
-EXECUTE FUNCTION log_actualizacion_mapa();
+CREATE TRIGGER trg_weapon_use
+AFTER INSERT ON combat_logs
+WHEN (NEW.action = 'damage')
+EXECUTE FUNCTION fn_decrease_durability();
 
--- Validar el nivel del enemigo
-CREATE OR REPLACE FUNCTION validar_nivel_enemigo()
-RETURNS TRIGGER AS $$
+/* T6: bloquear suicidio de transacción de zombi repetido */
+CREATE FUNCTION fn_unique_kill() RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.nivel < 0 THEN
-        RAISE EXCEPTION 'El nivel del enemigo no puede ser negativo';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+  IF EXISTS (SELECT 1 FROM kill_logs WHERE zombie_type=NEW.zombie_type AND player_id=NEW.player_id AND session_id=NEW.session_id) THEN
+     RETURN NULL; -- ignora duplicates
+  END IF;
+  RETURN NEW;
+END$$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_validar_nivel_enemigo
-BEFORE INSERT ON enemigos
-FOR EACH ROW
-EXECUTE FUNCTION validar_nivel_enemigo();
-
--- Trigger para registrar un nuevo tipo de jefe
-CREATE TABLE log_jefes (
-    id SERIAL PRIMARY KEY,
-    jefe_id INT NOT NULL,
-    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (jefe_id) REFERENCES jefe_zombi(id)
-);
-
-
-CREATE OR REPLACE FUNCTION log_nuevo_jefe()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO log_jefes (jefe_id)
-    VALUES (NEW.id);
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_log_nuevo_jefe
-AFTER INSERT ON jefe_zombi
-FOR EACH ROW
-EXECUTE FUNCTION log_nuevo_jefe();
-
---Trigger para actualizar la experiencia
-
-CREATE OR REPLACE FUNCTION actualizar_experiencia()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NEW.estado = 'completada' AND OLD.estado != 'completada' THEN
-        UPDATE jugadores
-        SET experiencia = experiencia + 100
-        WHERE id = NEW.jugador_id;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_actualizar_experiencia
-AFTER UPDATE ON jugador_mision
-FOR EACH ROW
-EXECUTE FUNCTION actualizar_experiencia();
-
-
----- New Trigger Probar si funciona 
-
--- CREATE OR REPLACE FUNCTION eliminar_item_roto()
---     RETURNS TRIGGER AS $$
--- BEGIN
---     IF NEW.durabilidad_actual <= 0 THEN
---         -- Generar mensaje de notificación
---         RAISE NOTICE 'El ítem % del jugador % se ha roto y fue eliminado del inventario.',
---             (SELECT nombre FROM items WHERE id = NEW.item_id),
---             (SELECT nombre FROM jugadores WHERE id = NEW.jugador_id);
-
---         -- Eliminar el ítem del inventario
---         DELETE FROM inventario
---         WHERE jugador_id = NEW.jugador_id AND item_id = NEW.item_id;
-
---         -- Retornar NULL porque el registro ya fue eliminado
---         RETURN NULL;
---     END IF;
-
---     RETURN NEW;
--- END;
--- $$ LANGUAGE plpgsql;
-
--- -- Crear el trigger
--- CREATE TRIGGER trigger_item_roto
---     BEFORE UPDATE ON inventario
---     FOR EACH ROW
---     WHEN (NEW.durabilidad_actual <= 0)
--- EXECUTE FUNCTION eliminar_item_roto();
-
--- -- Asegurarse de que existe un ítem en el inventario
--- INSERT INTO inventario (jugador_id, item_id, cantidad, durabilidad_actual)
--- SELECT 1, 1, 1, durabilidad_max
--- FROM items
--- WHERE id = 1
--- ON CONFLICT DO NOTHING;
-
-
+CREATE TRIGGER trg_unique_kill
+BEFORE INSERT ON kill_logs
+FOR EACH ROW EXECUTE FUNCTION fn_unique_kill();

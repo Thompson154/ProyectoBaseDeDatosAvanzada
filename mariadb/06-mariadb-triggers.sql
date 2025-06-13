@@ -1,0 +1,51 @@
+-- -- Trigger para Actualizar Experiencia de Habilidad tras Combate
+-- DELIMITER //
+-- CREATE TRIGGER after_combat_skill_progress
+-- AFTER INSERT ON log_combate
+-- FOR EACH ROW
+-- BEGIN
+--     DECLARE habilidad_relacionada INT;
+--     SET habilidad_relacionada = NEW.arma_id;
+--     IF NEW.dano_infligido > 100 THEN
+--         INSERT INTO progreso_habilidad (jugador_id, habilidad_id, nivel, experiencia)
+--         VALUES (NEW.jugador_id, habilidad_relacionada, 1, 50)
+--         ON DUPLICATE KEY UPDATE experiencia = experiencia + 50;
+--     END IF;
+-- END //
+-- DELIMITER ;
+
+
+-- -- Trigger para Registrar Recompensa por Partida Victoriosa en Evento
+-- DELIMITER //
+-- CREATE TRIGGER before_partida_end
+-- BEFORE UPDATE ON partidas
+-- FOR EACH ROW
+-- BEGIN
+--     DECLARE evento_activo INT;
+--     IF NEW.fecha_fin IS NOT NULL AND NEW.victoria = 1 THEN
+--         SELECT id INTO evento_activo
+--         FROM eventos_zombi
+--         WHERE NEW.fecha_inicio BETWEEN fecha_inicio AND fecha_fin
+--         LIMIT 1;
+--         IF evento_activo IS NOT NULL THEN
+--             INSERT INTO recompensa_evento (jugador_id, evento_id, recompensa_obtenida, fecha_registro)
+--             VALUES (NEW.jugador_id, evento_activo, 'Bonus Victoria', NOW());
+--         END IF;
+--     END IF;
+-- END //
+-- DELIMITER ;
+
+-- Actualiza el resultado del combate
+-- DELIMITER $$
+
+-- CREATE TRIGGER trg_log_combate_al_actualizar_resultado
+-- AFTER UPDATE ON partidas
+-- FOR EACH ROW
+-- BEGIN
+--     IF NEW.resultado <> OLD.resultado THEN
+--         INSERT INTO log_combate(jugador_id, enemigo_id, accion, valor, momento, partida_id)
+--         VALUES (NEW.jugador_id, NULL, CONCAT('Resultado actualizado a ', NEW.resultado), 0, NOW(), NEW.id);
+--     END IF;
+-- END$$
+
+-- DELIMITER ;

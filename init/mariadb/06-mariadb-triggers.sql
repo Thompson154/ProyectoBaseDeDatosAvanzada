@@ -1,51 +1,46 @@
--- -- Trigger para Actualizar Experiencia de Habilidad tras Combate
--- DELIMITER //
--- CREATE TRIGGER after_combat_skill_progress
--- AFTER INSERT ON log_combate
--- FOR EACH ROW
--- BEGIN
---     DECLARE habilidad_relacionada INT;
---     SET habilidad_relacionada = NEW.arma_id;
---     IF NEW.dano_infligido > 100 THEN
---         INSERT INTO progreso_habilidad (jugador_id, habilidad_id, nivel, experiencia)
---         VALUES (NEW.jugador_id, habilidad_relacionada, 1, 50)
---         ON DUPLICATE KEY UPDATE experiencia = experiencia + 50;
---     END IF;
--- END //
--- DELIMITER ;
+/* T1: log si cambia daño de un arma */
+CREATE TRIGGER trg_item_damage
+AFTER UPDATE ON items
+FOR EACH ROW
+  IF OLD.base_damage <> NEW.base_damage THEN
+     INSERT INTO item_change_log(item_id,old_damage,new_damage)
+     VALUES (NEW.item_id,OLD.base_damage,NEW.base_damage);
+  END IF;
 
+/* T2: impedir item con durabilidad negativa */
+CREATE TRIGGER trg_item_durability_chk
+BEFORE INSERT ON items
+FOR EACH ROW
+  IF NEW.max_durability < 0 THEN
+     SET NEW.max_durability = 0;
+  END IF;
 
--- -- Trigger para Registrar Recompensa por Partida Victoriosa en Evento
--- DELIMITER //
--- CREATE TRIGGER before_partida_end
--- BEFORE UPDATE ON partidas
--- FOR EACH ROW
--- BEGIN
---     DECLARE evento_activo INT;
---     IF NEW.fecha_fin IS NOT NULL AND NEW.victoria = 1 THEN
---         SELECT id INTO evento_activo
---         FROM eventos_zombi
---         WHERE NEW.fecha_inicio BETWEEN fecha_inicio AND fecha_fin
---         LIMIT 1;
---         IF evento_activo IS NOT NULL THEN
---             INSERT INTO recompensa_evento (jugador_id, evento_id, recompensa_obtenida, fecha_registro)
---             VALUES (NEW.jugador_id, evento_activo, 'Bonus Victoria', NOW());
---         END IF;
---     END IF;
--- END //
--- DELIMITER ;
+/* T3: asegurar nombre único de habilidad */
+CREATE TRIGGER trg_skill_unique
+BEFORE INSERT ON skills
+FOR EACH ROW
+  IF EXISTS (SELECT 1 FROM skills WHERE skill_name=NEW.skill_name) THEN
+     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Skill already exists';
+  END IF;
 
--- Actualiza el resultado del combate
--- DELIMITER $$
+/* T4: rellenar color por defecto */
+CREATE TRIGGER trg_rarity_color_default
+BEFORE INSERT ON rarities
+FOR EACH ROW
+  IF NEW.color_hex IS NULL THEN
+     SET NEW.color_hex = '#FFFFFF';
+  END IF;
 
--- CREATE TRIGGER trg_log_combate_al_actualizar_resultado
--- AFTER UPDATE ON partidas
--- FOR EACH ROW
--- BEGIN
---     IF NEW.resultado <> OLD.resultado THEN
---         INSERT INTO log_combate(jugador_id, enemigo_id, accion, valor, momento, partida_id)
---         VALUES (NEW.jugador_id, NULL, CONCAT('Resultado actualizado a ', NEW.resultado), 0, NOW(), NEW.id);
---     END IF;
--- END$$
+/* T5: auto-marca Story si map_id =1 */
+CREATE TRIGGER trg_default_type_story
+AFTER INSERT ON missions
+FOR EACH ROW
+  IF NEW.map_id = 1 THEN
+     INSERT INTO missions_types_map VALUES (NEW.mission_id,1);
+  END IF;
 
--- DELIMITER ;
+/* T6: cascada habilidad→zombie_type_abilities */
+CREATE TRIGGER trg_add_default_ability
+AFTER INSERT ON zombie_types
+FOR EACH ROW
+  INSERT INTO zombie_type_abilities(type_id,ability_id) VALUES (NEW.type_id,1);

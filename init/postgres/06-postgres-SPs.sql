@@ -1,105 +1,52 @@
--- Colocar todos los SP
-
--- SP para agregar mapas en algun futuro
-CREATE OR REPLACE PROCEDURE agregar_mapa(
-    p_nombre VARCHAR(50),
-    p_zona VARCHAR(50),
-    p_dificultad VARCHAR(20)
-)
+/* SP1: atacar zombi */
+CREATE PROCEDURE sp_attack_zombie(p_player INT, p_zombie INT, p_dmg INT, p_weapon INT)
 LANGUAGE plpgsql AS $$
 BEGIN
-    IF p_nombre IS NULL OR p_nombre = '' THEN
-        RAISE EXCEPTION 'El nombre del mapa no puede ser nulo o vacío';
-    END IF;
-    IF p_zona IS NULL OR p_zona = '' THEN
-        RAISE EXCEPTION 'La zona del mapa no puede ser nula o vacía';
-    END IF;
-    IF p_dificultad NOT IN ('Facil', 'Medio', 'Dificil') THEN
-        RAISE EXCEPTION 'La dificultad debe ser fácil, medio o difícil';
-    END IF;
+  INSERT INTO combat_logs(event_time,player_id,target_type,target_id,weapon_id,action,amount)
+  VALUES (NOW(), p_player,'zombie',p_zombie,p_weapon,'damage',p_dmg);
+END$$;
 
-    INSERT INTO mapas (nombre, zona, dificultad)
-    VALUES (p_nombre, p_zona, p_dificultad);
-
-EXCEPTION
-    WHEN unique_violation THEN
-        RAISE EXCEPTION 'El mapa con nombre % ya existe', p_nombre;
-    WHEN OTHERS THEN
-        RAISE EXCEPTION 'Error al agregar mapa: %', SQLERRM;
-END;
-$$;
-
--- SP para actualizar la dificultad del mapa 
-CREATE OR REPLACE PROCEDURE actualizar_dificultad_mapa(
-    p_id INT,
-    p_dificultad VARCHAR(20)
-)
-LANGUAGE plpgsql AS $$
-DECLARE
-    filas_afectadas INT;
-BEGIN
-    IF p_id IS NULL THEN
-        RAISE EXCEPTION 'El ID del mapa no puede ser nulo';
-    END IF;
-    IF p_dificultad IS NULL OR p_dificultad = '' THEN
-        RAISE EXCEPTION 'La dificultad no puede ser nula o vacía';
-    END IF;
-    IF p_dificultad NOT IN ('Facil', 'Medio', 'Dificil') THEN
-        RAISE EXCEPTION 'La dificultad debe ser fácil, medio o difícil';
-    END IF;
-
-    UPDATE mapas
-    SET dificultad = p_dificultad
-    WHERE id = p_id;
-END;
-$$;
-
-
--- SP para Actualizar Estado de Misión
-CREATE OR REPLACE PROCEDURE actualizar_estado_mision(
-    p_jugador_id INT,
-    p_mision_id INT,
-    p_estado VARCHAR(20)
-)
+/* SP2: curar jugador */
+CREATE PROCEDURE sp_heal_player(p_player INT, p_amt INT)
 LANGUAGE plpgsql AS $$
 BEGIN
-    UPDATE jugador_mision
-    SET estado = p_estado, fecha_fin = CASE WHEN p_estado = 'completada' THEN NOW() ELSE fecha_fin END
-    WHERE jugador_id = p_jugador_id AND mision_id = p_mision_id;
-    IF p_estado = 'completada' THEN
-        UPDATE jugadores
-        SET nivel = nivel + 1
-        WHERE id = p_jugador_id;
-    END IF;
-END;
-$$;
+  UPDATE player_stats SET hp = LEAST(hp + p_amt, 100)
+  WHERE player_id = p_player;
+END$$;
 
--- SP para generar enemigos en cierto mapa
-CREATE OR REPLACE PROCEDURE generar_enemigo_mapa(
-    p_mapa_id INT
-)
+/* SP3: usar habilidad */
+CREATE PROCEDURE sp_use_skill(p_player INT,p_skill INT,p_target INT,p_ttype TEXT)
 LANGUAGE plpgsql AS $$
 BEGIN
-    INSERT INTO enemigos (nombre, tipo, nivel, vida, es_jefe, mapa_id)
-    VALUES ('Zombi_' || (SELECT nextval('enemigos_id_seq')), 'Caminante', 1, 100, FALSE, p_mapa_id);
-END;
-$$;
+  INSERT INTO combat_logs(event_time,player_id,target_type,target_id,action,amount,notes)
+  VALUES (NOW(),p_player,p_ttype,p_target,'skill',0,'skill='||p_skill);
+END$$;
 
---SP para agregar Items al Inventario
-CREATE OR REPLACE PROCEDURE agregar_item_inventario(
-    p_jugador_id INT,
-    p_item_id INT
-)
+/* SP4: añadir objeto a inventario */
+CREATE PROCEDURE sp_add_item(p_inv INT,p_item INT,p_qty INT)
 LANGUAGE plpgsql AS $$
 BEGIN
-    INSERT INTO inventario (jugador_id, item_id, cantidad, durabilidad_actual)
-    SELECT p_jugador_id, p_item_id, 1, i.durabilidad_max
-    FROM items i
-    WHERE i.id = p_item_id;
-    
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Item % no encontrado', p_item_id;
-    END IF;
-END;
-$$;
+  INSERT INTO inventory_items(inventory_id,item_id,quantity)
+  VALUES (p_inv,p_item,p_qty)
+  ON CONFLICT (inventory_id,item_id) DO
+    UPDATE SET quantity = inventory_items.quantity + EXCLUDED.quantity;
+END$$;
 
+/* SP5: iniciar misión */
+CREATE PROCEDURE sp_start_mission(p_player INT,p_mission INT)
+LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO player_missions(player_id,mission_id,state)
+  VALUES (p_player,p_mission,'active')
+  ON CONFLICT DO NOTHING;
+END$$;
+
+/* SP6: completar misión */
+CREATE PROCEDURE sp_complete_mission(p_player INT,p_mission INT)
+LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE player_missions
+  SET state='completed', finished_at=NOW()
+  WHERE player_id=p_player AND mission_id=p_mission;
+  PERFORM fn_add_xp(p_player,500);
+END$$;

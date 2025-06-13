@@ -1,65 +1,86 @@
--- Crear tabla eventos_zombi primero (no tiene dependencias)
-CREATE TABLE eventos_zombi (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nombre_evento VARCHAR(100),
-    tipo_evento VARCHAR(30),
-    fecha_inicio DATETIME,
-    fecha_fin DATETIME,
-    activo BOOLEAN DEFAULT TRUE
-);
+-- Usa la BD que prefieras
+-- CREATE DATABASE IF NOT EXISTS game_meta CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- USE game_meta;
 
--- Crear tabla partidas (depende de eventos_zombi)
-CREATE TABLE partidas (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    jugador_id INT, -- Para unir con la tabla jugadores en PostgreSQL (en Big Data)
-    fecha_inicio DATETIME,
-    fecha_fin DATETIME,
-    resultado VARCHAR(20),
-    enemigos_derrotados INT,
-    evento_id INT, -- Relación con eventos_zombi
-    FOREIGN KEY (evento_id) REFERENCES eventos_zombi(id)
-);
+-- 1. Raridades --------------------------------------------------------------
+CREATE TABLE rarities (
+    rarity_id   INT AUTO_INCREMENT PRIMARY KEY,
+    rarity_name VARCHAR(30) NOT NULL,
+    color_hex   CHAR(7)     NOT NULL
+) ENGINE=InnoDB;
 
--- Crear tabla log_combate (depende de partidas)
-CREATE TABLE log_combate (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    jugador_id INT, -- Para unir con la tabla jugadores en PostgreSQL (en Big Data)
-    enemigo_id INT, -- Para unir con la tabla enemigos en PostgreSQL (en Big Data)
-    accion VARCHAR(50),
-    valor INT,
-    momento DATETIME DEFAULT CURRENT_TIMESTAMP,
-    partida_id INT,
-    FOREIGN KEY (partida_id) REFERENCES partidas(id) -- Relación interna con partidas
-);
+-- 2. Ítems ------------------------------------------------------------------
+CREATE TABLE items (
+    item_id        INT AUTO_INCREMENT PRIMARY KEY,
+    rarity_id      INT NOT NULL,
+    name           VARCHAR(60) NOT NULL,
+    base_damage    INT NOT NULL,
+    max_durability INT NOT NULL,
+    FOREIGN KEY (rarity_id) REFERENCES rarities(rarity_id)
+) ENGINE=InnoDB;
 
--- Crear tabla drops (depende de eventos_zombi)
-CREATE TABLE drops (
-    enemigo_id INT, -- Para unir con la tabla enemigos en PostgreSQL (en Big Data)
-    item_id INT, -- Para unir con la tabla items en PostgreSQL (en Big Data)
-    probabilidad DECIMAL(5,2),
-    evento_id INT, -- Relación con eventos_zombi para recompensas especiales
-    PRIMARY KEY (enemigo_id, item_id),
-    FOREIGN KEY (evento_id) REFERENCES eventos_zombi(id)
-);
+-- 3. Habilidades ------------------------------------------------------------
+CREATE TABLE skills (
+    skill_id    INT AUTO_INCREMENT PRIMARY KEY,
+    skill_name  VARCHAR(60) NOT NULL,
+    description TEXT
+) ENGINE=InnoDB;
 
--- Crear tabla progreso_habilidad (depende de partidas)
-CREATE TABLE progreso_habilidad (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    jugador_id INT, -- Para unir con la tabla jugadores en PostgreSQL (en Big Data)
-    habilidad VARCHAR(50),
-    nivel INT DEFAULT 1,
-    experiencia INT DEFAULT 0,
-    ultima_actualizacion DATETIME,
-    partida_id INT, -- Relación con partidas para desbloqueo de habilidades
-    FOREIGN KEY (partida_id) REFERENCES partidas(id)
-);
+-- 4. Mapas ------------------------------------------------------------------
+CREATE TABLE maps (
+    map_id          INT AUTO_INCREMENT PRIMARY KEY,
+    map_name        VARCHAR(60) NOT NULL,
+    max_players     INT NOT NULL DEFAULT 3,
+    has_night_cycle TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB;
 
--- Crear tabla recompensa_evento (depende de eventos_zombi)
-CREATE TABLE recompensa_evento (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    evento_id INT,
-    jugador_id INT, -- Para unir con la tabla jugadores en PostgreSQL (en Big Data)
-    recompensa TEXT,
-    fecha_entrega DATETIME,
-    FOREIGN KEY (evento_id) REFERENCES eventos_zombi(id) -- Relación interna con eventos_zombi
-);
+-- 5. Tipos de misión --------------------------------------------------------
+CREATE TABLE mission_types (
+    type_id   INT AUTO_INCREMENT PRIMARY KEY,
+    type_name VARCHAR(40) NOT NULL
+) ENGINE=InnoDB;
+
+-- 6. Misiones ---------------------------------------------------------------
+CREATE TABLE missions (
+    mission_id   INT AUTO_INCREMENT PRIMARY KEY,
+    map_id       INT  NOT NULL,
+    mission_name VARCHAR(80) NOT NULL,
+    target_json  JSON,
+    FOREIGN KEY (map_id) REFERENCES maps(map_id)
+) ENGINE=InnoDB;
+
+-- 7. Relación misión ↔ tipo (N:M) ------------------------------------------
+CREATE TABLE missions_types_map (
+    mission_id INT NOT NULL,
+    type_id    INT NOT NULL,
+    PRIMARY KEY (mission_id, type_id),
+    FOREIGN KEY (mission_id) REFERENCES missions(mission_id)       ON DELETE CASCADE,
+    FOREIGN KEY (type_id)    REFERENCES mission_types(type_id)     ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+/* ---------- ZOMBIES & HABILITIES: catálogos ---------- */
+
+/* 8. Habilidades (“abilities”) ------------------------- */
+CREATE TABLE abilities (
+    ability_id   INT AUTO_INCREMENT PRIMARY KEY,
+    ability_name VARCHAR(60) NOT NULL,
+    effect_desc  TEXT
+) ENGINE=InnoDB;
+
+/* 9. Tipos de zombi (“zombie_types”) ------------------- */
+CREATE TABLE zombie_types (
+    type_id      INT AUTO_INCREMENT PRIMARY KEY,
+    type_name    VARCHAR(60) NOT NULL,
+    base_hp      INT NOT NULL,
+    base_damage  INT NOT NULL,
+    lore_text    TEXT
+) ENGINE=InnoDB;
+
+/* 10. Relación N:M tipo-zombi ↔ habilidad ------------- */
+CREATE TABLE zombie_type_abilities (
+    type_id    INT NOT NULL,
+    ability_id INT NOT NULL,
+    PRIMARY KEY (type_id, ability_id),
+    FOREIGN KEY (type_id)    REFERENCES zombie_types(type_id) ON DELETE CASCADE,
+    FOREIGN KEY (ability_id) REFERENCES abilities(ability_id) ON DELETE CASCADE
+) ENGINE=InnoDB;

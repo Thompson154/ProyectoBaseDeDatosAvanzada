@@ -1,10 +1,8 @@
--- UPDATE jugadores
--- SET nombre = 'Jugador_' || id;
+/* 0. Asegúrate de tener la extensión para bcrypt */
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- UPDATE usuarios
--- SET 
---     correo = 'xxxxx_' || id || '@' || SPLIT_PART(correo, '@', 2), -- Agrega el id para unicidad
---     password = crypt(password, gen_salt('bf'));
-    
+UPDATE users
+SET
+    username = 'Player_' || user_id,
+    email    = 'anon_'   || user_id || '@example.com',
+    password = crypt(password, gen_salt('bf'));
