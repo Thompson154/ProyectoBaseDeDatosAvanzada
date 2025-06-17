@@ -39,8 +39,9 @@ const client = createClient({
 client.connect().catch(console.error);
 
 const PLAYER_STATS_KEY = "player_stats:";
-const INVENTORY_KEY = "inventory_items:";
-const INVENTORY_CAPACITY_KEY = "inventory:";
+const INVENTORY_ITEMS_SET_KEY = "inventory_items_set:";
+const INVENTORY_QUANTITIES_KEY = "inventory_quantities:";
+const INVENTORY_CAPACITY_KEY = "inventory:"; 
 
 const getPlayerCache = async (key) => {
   const cached = await client.get(key);
@@ -54,6 +55,40 @@ const setPlayerCache = async (key, data, ttl) => {
   await client.setEx(key, ttl, JSON.stringify(data));
 };
 
+const getInventoryItemsCache = async (playerId) => {
+  const setKey = `${INVENTORY_ITEMS_SET_KEY}${playerId}`;
+  const hashKey = `${INVENTORY_QUANTITIES_KEY}${playerId}`;
+
+  const itemIds = await client.sMembers(setKey);
+  if (itemIds.length === 0) return null;
+
+  const items = [];
+  for (const itemId of itemIds) {
+    const quantity = await client.hGet(hashKey, itemId);
+    if (quantity) {
+      items.push({ item_id: parseInt(itemId), quantity: parseInt(quantity) });
+    }
+  }
+
+  return items;
+};
+
+const setInventoryItemsCache = async (playerId, items, ttl) => {
+  const setKey = `${INVENTORY_ITEMS_SET_KEY}${playerId}`;
+  const hashKey = `${INVENTORY_QUANTITIES_KEY}${playerId}`;
+
+  await client.del(setKey);
+  await client.del(hashKey);
+
+  for (const item of items) {
+    await client.sAdd(setKey, item.item_id.toString());
+    await client.hSet(hashKey, item.item_id.toString(), item.quantity.toString());
+  }
+
+  await client.expire(setKey, ttl);
+  await client.expire(hashKey, ttl);
+};
+
 const getPlayerStats = async (playerId) => {
   const redisKey = `${PLAYER_STATS_KEY}${playerId}`;
   const cachedData = await getPlayerCache(redisKey);
@@ -65,35 +100,35 @@ const getPlayerStats = async (playerId) => {
   const response = await getPlayerStatsDB(playerId);
   console.log(response);
   if (response) {
-    await setPlayerCache(redisKey, response, 30); 
+    await setPlayerCache(redisKey, response, 30);
   }
   return response;
 };
 
 const getInventory = async (playerId) => {
-  const redisKey = `${INVENTORY_KEY}${playerId}`;
-  const cachedData = await getPlayerCache(redisKey);
-  if (cachedData) {
-    console.log("From Redis", cachedData);
-    return cachedData;
+  const redisCapacityKey = `${INVENTORY_CAPACITY_KEY}${playerId}`;
+  const cachedItems = await getInventoryItemsCache(playerId);
+  const cachedCapacity = await getPlayerCache(redisCapacityKey);
+
+  if (cachedItems && cachedCapacity) {
+    console.log("From Redis", { capacity: cachedCapacity, items: cachedItems });
+    return { capacity: cachedCapacity, items: cachedItems };
   }
 
   const response = await getInventoryDB(playerId);
   console.log(response);
   if (response) {
-    await setPlayerCache(redisKey, response, 60); 
+    await setPlayerCache(redisCapacityKey, response.capacity, 60);
+    if (response.items.length > 0) {
+      await setInventoryItemsCache(playerId, response.items, 60);
+    }
   }
   return response;
 };
 
-const setPlayerStats = async (data) => {
-  const redisKey = `${PLAYER_STATS_KEY}${data.playerId}`;
-  const response = await setPlayerStatsData(data);
-  if (response.ok) {
-    await setPlayerCache(redisKey, response.data, 30); 
-  }
-  return response;
-};
 
-getPlayerStats(1);
-getInventory(1);
+(async () => {
+  await getPlayerStats(1);
+  await getInventory(1);
+})();
+
