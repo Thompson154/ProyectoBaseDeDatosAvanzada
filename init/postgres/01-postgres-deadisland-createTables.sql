@@ -22,7 +22,7 @@ CREATE TABLE player_stats (
     level     INTEGER NOT NULL DEFAULT 1,
     xp        BIGINT  NOT NULL DEFAULT 0
 );
-CREATE INDEX idx_player_stats_rank ON player_stats (level DESC, xp DESC);
+CREATE INDEX idx_player_stats_rank ON player_stats (level DESC, xp DESC) USING HASH(player_id);
 
 /* 4. Inventarios ------------------------------------------------------ */
 CREATE TABLE inventories (
