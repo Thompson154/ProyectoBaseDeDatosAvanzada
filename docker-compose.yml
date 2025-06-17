@@ -27,6 +27,61 @@ services:
       - mariadbdata:/var/lib/mysql
       - ./init/mariadb:/docker-entrypoint-initdb.d
 
+  mariadb-master:
+    image: mariadb:10.5
+    container_name: mariadb-master
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD_MASTER}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER_MASTER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD_MASTER}
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./init/mariadb:/docker-entrypoint-initdb.d
+      - ./config/my-master.cnf:/etc/mysql/conf.d/my.cnf
+      - mariadbmasterdata:/var/lib/mysql 
+
+  mariadb-slave1:
+    image: mariadb:10.5
+    container_name: mariadb-slave1
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD_SLAVE1}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER_SLAVE1}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD_SLAVE1}
+      MYSQL_REPLICATION_USER: ${MYSQL_REPL_USER}
+      MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPL_PASSWORD}
+    ports:
+      - "3309:3306"
+    depends_on:
+      - mariadb-master
+    volumes:
+      - ./config/my-slave.cnf:/etc/mysql/conf.d/my.cnf
+      - mariadbslave1data:/var/lib/mysql 
+
+  mariadb-slave2:
+    image: mariadb:10.5
+    container_name: mariadb-slave2
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD_SLAVE2}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER_SLAVE2}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD_SLAVE2}
+      MYSQL_REPLICATION_USER: ${MYSQL_REPL_USER}
+      MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPL_PASSWORD}
+    ports:
+      - "3310:3306"
+    depends_on:
+      - mariadb-master
+    volumes:
+      - ./config/my-slave.cnf:/etc/mysql/conf.d/my.cnf
+      - mariadbslave2data:/var/lib/mysql
+
+
   configsvr:
     image: mongo:6.0
     container_name: configsvr
@@ -79,6 +134,9 @@ services:
 volumes:
   pgdata:
   mariadbdata:
+  mariadbmasterdata:
+  mariadbslave1data:
+  mariadbslave2data:
   mongodata:
   cache:
     driver: local
