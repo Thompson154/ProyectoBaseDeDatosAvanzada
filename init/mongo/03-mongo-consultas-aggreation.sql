@@ -23,16 +23,20 @@ db.players.aggregate([
 /* 4. Contar ítems por rareza en inventarios */
 db.players.aggregate([
   { $unwind: "$inventory.items" },
-  { $group: { _id: "$inventory.items.rarity.rarity_name", totalItems: { $sum: "$inventory.items.quantity" } } }
+  { $lookup: { from: "items", localField: "inventory.items.item_id", foreignField: "_id", as: "item_info" } },
+  { $unwind: "$item_info" },
+  { $group: { _id: "$item_info.rarity.rarity_name", totalItems: { $sum: "$inventory.items.quantity" } } }
 ]);
 
 /* 5. Jugadores con misiones activas y su mapa */
 db.players.aggregate([
   { $unwind: "$missions" },
   { $match: { "missions.state": "active" } },
-  { $lookup: { from: "maps", localField: "missions.map.map_id", foreignField: "_id", as: "map_info" } },
+  { $lookup: { from: "missions", localField: "missions.mission_id", foreignField: "_id", as: "mission_info" } },
+  { $unwind: "$mission_info" },
+  { $lookup: { from: "maps", localField: "mission_info.map.map_id", foreignField: "_id", as: "map_info" } },
   { $unwind: "$map_info" },
-  { $project: { player_id: "$_id", mission_name: "$missions.mission_name", map_name: "$map_info.map_name" } }
+  { $project: { player_id: "$_id", mission_name: "$mission_info.mission_name", map_name: "$map_info.map_name" } }
 ]);
 
 /* 6. Promedio de XP por nivel */
@@ -58,8 +62,10 @@ db.map_sessions.aggregate([
 /* 9. Jugadores con habilidades desbloqueadas específicas */
 db.players.aggregate([
   { $unwind: "$skills_unlocked" },
-  { $match: { "skills_unlocked.skill_name": "Afilado" } },
-  { $project: { player_id: "$_id", skill_name: "$skills_unlocked.skill_name", unlocked_at: "$skills_unlocked.unlocked_at" } }
+  { $lookup: { from: "skills", localField: "skills_unlocked.skill_id", foreignField: "_id", as: "skill_info" } },
+  { $unwind: "$skill_info" },
+  { $match: { "skill_info.skill_name": "Afilado" } },
+  { $project: { player_id: "$_id", skill_name: "$skill_info.skill_name", unlocked_at: "$skills_unlocked.unlocked_at" } }
 ]);
 
 /* 10. Misiones completadas por mapa */
@@ -72,7 +78,9 @@ db.players.aggregate([
 /* 11. Total de daño base en inventarios por jugador */
 db.players.aggregate([
   { $unwind: "$inventory.items" },
-  { $group: { _id: "$_id", totalDamage: { $sum: "$inventory.items.base_damage" } } },
+  { $lookup: { from: "items", localField: "inventory.items.item_id", foreignField: "_id", as: "item_info" } },
+  { $unwind: "$item_info" },
+  { $group: { _id: "$_id", totalDamage: { $sum: "$item_info.base_damage" } } },
   { $project: { player_id: "$_id", totalDamage: 1 } }
 ]);
 
@@ -130,8 +138,10 @@ db.map_sessions.aggregate([
 /* 19. Ítems legendarios en inventarios */
 db.players.aggregate([
   { $unwind: "$inventory.items" },
-  { $match: { "inventory.items.rarity.rarity_name": "Legendario" } },
-  { $project: { player_id: "$_id", item_name: "$inventory.items.name", base_damage: "$inventory.items.base_damage" } }
+  { $lookup: { from: "items", localField: "inventory.items.item_id", foreignField: "_id", as: "item_info" } },
+  { $unwind: "$item_info" },
+  { $match: { "item_info.rarity.rarity_name": "Legendario" } },
+  { $project: { player_id: "$_id", item_name: "$item_info.name", base_damage: "$item_info.base_damage" } }
 ]);
 
 /* 20. Zombis enfurecidos por tipo y mapa */

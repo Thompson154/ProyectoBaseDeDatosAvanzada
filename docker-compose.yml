@@ -81,6 +81,18 @@ services:
       - ./config/my-slave.cnf:/etc/mysql/conf.d/my.cnf
       - mariadbslave2data:/var/lib/mysql
 
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    ports:
+      - "27016:27017"
+    volumes:
+      - mongodata:/data/db
+      - ./init/mongodb:/docker-entrypoint-initdb.d
 
   configsvr:
     image: mongo:6.0

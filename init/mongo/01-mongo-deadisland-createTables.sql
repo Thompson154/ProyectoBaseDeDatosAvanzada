@@ -299,7 +299,7 @@ db.createCollection("map_sessions", {
   }
 });
 
-
+/*
 -- Colecciones Embebidas
 -- player_stats dentro de players:
 -- Las estadísticas (hp, stamina, level, xp) son datos íntimamente ligados a cada jugador y que se consultan y actualizan frecuentemente junto con el documento del jugador. Embebirlas dentro de players reduce la necesidad de hacer joins o múltiples consultas, mejorando la eficiencia y simplicidad en el acceso y modificación.
@@ -345,3 +345,4 @@ db.createCollection("map_sessions", {
 -- Embebidos para rendimiento y consistencia en datos que se consultan juntos.
 
 -- Referenciales para datos compartidos y estáticos, facilitando mantenimiento y actualización.
+*/
