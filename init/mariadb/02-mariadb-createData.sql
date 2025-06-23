@@ -1,128 +1,154 @@
-INSERT INTO eventos_zombi (nombre_evento, tipo_evento, fecha_inicio, fecha_fin, activo)
-SELECT
-    CONCAT('Evento Zombi #', s.i),
-    CASE FLOOR(1 + RAND() * 5)
-        WHEN 1 THEN 'Horda'
-        WHEN 2 THEN 'Infección'
-        WHEN 3 THEN 'Defensa de Base'
-        WHEN 4 THEN 'Caza de Jefe'
-        ELSE 'Supervivencia'
-    END,
-    NOW() - INTERVAL FLOOR(RAND() * 30) DAY, 
-    NOW() + INTERVAL FLOOR(RAND() * 5 + 1) DAY, 
-    IF(RAND() > 0.3, TRUE, FALSE)
-FROM (
-    SELECT a.i
-    FROM (
-        SELECT 1 AS i UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
-        UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
-    ) a
-) AS s;
+-- /* 1. RARITIES */
+INSERT INTO
+    rarities (rarity_name, color_hex)
+VALUES
+    ('Common', '#BFBFBF'),
+    ('Uncommon', '#1EFF00'),
+    ('Rare', '#0070DD'),
+    ('Superior', '#A335EE'),
+    ('Legendary', '#FF8000');
 
+-- /* 2. ABILITIES */
+INSERT INTO
+    abilities (ability_name, effect_desc)
+VALUES
+    ('Fast Runner', 'Moves quickly'),
+    ('Acid Spit', 'Corrosive bile'),
+    ('Scream Stun', 'Area stun'),
+    ('Heavy Smash', 'Ground pound'),
+    ('Regeneration', 'Heals limbs'),
+    ('Limb Launcher', 'Bone projectiles'),
+    ('Exploder', 'Self-destruct'),
+    ('Fire Aura', 'Ignites area'),
+    ('Electric Shock', 'Arcs of electricity'),
+    ('Toxic Cloud', 'Poison gas');
 
-INSERT INTO partidas (jugador_id, fecha_inicio, fecha_fin, resultado, enemigos_derrotados, evento_id)
+-- /* 3. ZOMBIE TYPES */
+INSERT INTO
+    zombie_types (type_name, base_hp, base_damage, lore_text)
+VALUES
+    ('Walker', 100, 10, 'Shambling'),
+    ('Runner', 80, 8, 'Sprinter'),
+    ('Shambler', 60, 6, 'Rotten'),
+    ('Crawler', 70, 7, 'Legless jumper'),
+    ('Crusher', 300, 25, 'Tank'),
+    ('Slobber', 220, 20, 'Bile spitter'),
+    ('Screamer', 180, 0, 'Piercing scream'),
+    ('Butcher', 250, 22, 'Blade arms'),
+    ('Mutator', 280, 24, 'Bone spikes');
+
+-- /* 4. ZOMBIE TYPE ↔ ABILITY  (sin NULL) */
+INSERT INTO
+    zombie_type_abilities (type_id, ability_id)
+VALUES
+    (2, 1), -- Runner → Fast Runner
+    (4, 6), -- Crawler → Limb Launcher
+    (5, 4), -- Crusher → Heavy Smash
+    (6, 2),
+    (6, 10), -- Slobber → Acid Spit + Toxic Cloud
+    (7, 3), -- Screamer → Scream Stun
+    (8, 5), -- Butcher → Regeneration
+    (9, 6),
+    (9, 8);
+
+-- Mutator → Limb Launcher + Fire Aura
+-- /* 5. SKILLS */
+INSERT INTO
+    skills (skill_name, description)
+VALUES
+    ('Block', 'Timed defense'),
+    ('Dodge', 'Sidestep'),
+    ('Drop Kick', 'Aerial kick'),
+    ('Ground Slam', 'Jump smash'),
+    ('Dash Strike', 'Forward lunge');
+
+-- /* 6. MAPS */
+INSERT INTO
+    maps (map_name, max_players, has_night_cycle)
+VALUES
+    ('Bel-Air', 3, 1),
+    ('Halperin Hotel', 3, 1),
+    ('Beverly Hills', 3, 1),
+    ('Monarch Studios', 3, 1),
+    ('Brentwood Sewers', 3, 0),
+    ('Venice Beach', 3, 1),
+    ('Ocean Avenue', 3, 1),
+    ('Hollywood Boulevard', 3, 1),
+    ('The Metro', 3, 0),
+    ('The Pier', 3, 1);
+
+-- /* 7. MISSION TYPES */
+INSERT INTO
+    mission_types (type_name)
+VALUES
+    ('Story'),
+    ('Side Quest'),
+    ('Lost & Found'),
+    ('Challenge');
+
+-- /* 8. MISSIONS (10 principales) */
+INSERT INTO
+    missions (map_id, mission_name, target_json)
+VALUES
+    (
+        1,
+        'Flight of the Damned',
+        JSON_OBJECT ('kills', 20)
+    ),
+    (
+        1,
+        'Desperately Seeking Emma',
+        JSON_OBJECT ('escort', 1)
+    ),
+    (1, 'Bel-Air Brawl', JSON_OBJECT ('zombies', 50)),
+    (2, 'Call the Cavalry', JSON_OBJECT ('signal', 1)),
+    (
+        2,
+        'Room Service for Major Booker',
+        JSON_OBJECT ('items', 5)
+    ),
+    (
+        3,
+        'The Chaperone',
+        JSON_OBJECT ('find_survivor', 1)
+    ),
+    (
+        4,
+        'Michael Anders and the Holy Grail',
+        JSON_OBJECT ('fetch', 3)
+    ),
+    (
+        5,
+        'Justifiable Zombicide',
+        JSON_OBJECT ('slobbers', 2)
+    ),
+    (
+        6,
+        'Boardwalking Dead',
+        JSON_OBJECT ('reach_pier', 1)
+    ),
+    (8, 'Hollywood Ending', JSON_OBJECT ('boss', 1));
+
+-- /* 9. Story tag */
+INSERT INTO
+    missions_types_map (mission_id, type_id)
 SELECT
-    FLOOR(RAND() * 1000) + 1 AS jugador_id, 
-    NOW() - INTERVAL FLOOR(RAND() * 180) DAY AS fecha_inicio, 
-    NOW() - INTERVAL FLOOR(RAND() * 180) DAY + INTERVAL FLOOR(RAND() * 7200) MINUTE AS fecha_fin, 
-    CASE FLOOR(RAND() * 3)
-        WHEN 0 THEN 'Victoria'
-        WHEN 1 THEN 'Derrota'
-        ELSE 'Abandonada'
-    END AS resultado,
-    FLOOR(RAND() * 50) AS enemigos_derrotados,
-    FLOOR(RAND() * 10) + 1 AS evento_id 
+    mission_id,
+    1
 FROM
-    (SELECT a.N + b.N * 1000 + c.N * 10000 + 1 AS n
-     FROM
-         (SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4
-          UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) a,
-         (SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4
-          UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) b,
-         (SELECT 0 AS N UNION SELECT 1 UNION SELECT 2) c
-     WHERE a.N + b.N * 1000 + c.N * 10000 < 30000) numbers;
+    missions;
 
-DELIMITER $$
-
-CREATE PROCEDURE insertar_logs_combate()
-BEGIN
-    DECLARE i INT DEFAULT 0;
-    DECLARE partida_id_max INT;
-    SELECT MAX(id) INTO partida_id_max FROM partidas;
-
-    WHILE i < 30000 DO
-        SET @partida_id = FLOOR(1 + RAND() * partida_id_max);
-        INSERT INTO log_combate (jugador_id, enemigo_id, accion, valor, momento, partida_id)
-        SELECT
-            p.jugador_id, 
-            FLOOR(1 + RAND() * 500), 
-            ELT(FLOOR(1 + RAND() * 3), 'atacar', 'curar', 'esquivar'),
-            FLOOR(5 + RAND() * 95), 
-            p.fecha_inicio + INTERVAL FLOOR(RAND() * TIMESTAMPDIFF(MINUTE, p.fecha_inicio, p.fecha_fin)) MINUTE,
-            p.id
-        FROM partidas p
-        WHERE p.id = @partida_id;
-        SET i = i + 1;
-    END WHILE;
-END $$
-
-DELIMITER ;
-
-CALL insertar_logs_combate();
-
-
-INSERT INTO drops (enemigo_id, item_id, probabilidad, evento_id)
-SELECT
-    FLOOR(RAND() * 500) + 1 AS enemigo_id, 
-    FLOOR(RAND() * 200) + 1 AS item_id, 
-    ROUND(RAND() * 100, 2) AS probabilidad,
-    FLOOR(RAND() * 10) + 1 AS evento_id 
-FROM
-    (SELECT a.N + b.N * 1000 + c.N * 10000 + 1 AS n
-     FROM
-         (SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4
-          UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) a,
-         (SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4
-          UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) b,
-         (SELECT 0 AS N UNION SELECT 1 UNION SELECT 2) c
-     WHERE a.N + b.N * 1000 + c.N * 10000 < 30000) numbers
-ON DUPLICATE KEY UPDATE probabilidad = ROUND(RAND() * 100, 2);
-
-INSERT INTO progreso_habilidad (jugador_id, habilidad, nivel, experiencia, ultima_actualizacion, partida_id)
-SELECT
-    p.jugador_id,
-    ELT(
-        FLOOR(1 + RAND() * 6),
-        'Resistencia',
-        'Fuerza',
-        'Agilidad',
-        'Precisión',
-        'Sigilo',
-        'Supervivencia'
-    ) AS habilidad,
-    CASE
-        WHEN p.resultado = 'Victoria' THEN FLOOR(5 + RAND() * 6)
-        ELSE FLOOR(1 + RAND() * 4)
-    END AS nivel,
-    FLOOR(RAND() * 1000) AS experiencia, 
-    p.fecha_fin AS ultima_actualizacion, 
-    p.id AS partida_id
-FROM partidas p
-WHERE p.resultado IS NOT NULL
-LIMIT 1000;
-
-INSERT INTO recompensa_evento (evento_id, jugador_id, recompensa, fecha_entrega)
-SELECT
-    e.id AS evento_id,
-    FLOOR(RAND() * 1000) + 1 AS jugador_id,
-    CASE FLOOR(1 + RAND() * 5)
-        WHEN 1 THEN 'Carta de Habilidad'
-        WHEN 2 THEN 'Granada'
-        WHEN 3 THEN 'Katana rara'
-        WHEN 4 THEN 'Arma Corta'
-        ELSE 'Rifle'
-    END AS recompensa,
-    e.fecha_inicio + INTERVAL FLOOR(RAND() * TIMESTAMPDIFF(MINUTE, e.fecha_inicio, e.fecha_fin)) MINUTE AS fecha_entrega
-FROM eventos_zombi e
-WHERE e.id BETWEEN 1 AND 10
-LIMIT 50;
+-- /* 10. ITEMS / WEAPONS */
+INSERT INTO
+    items (rarity_id, name, base_damage, max_durability)
+VALUES
+    (1, 'Baseball Bat', 40, 150),
+    (2, 'Machete', 45, 120),
+    (2, 'Hammer', 35, 180),
+    (3, 'Katana', 55, 110),
+    (3, 'Axe', 60, 100),
+    (4, 'Cleaver', 50, 130),
+    (4, 'Pistol', 35, 99999),
+    (4, 'Shotgun', 90, 99999),
+    (5, 'Assault Rifle', 70, 99999),
+    (5, 'Legendary Golf Club', 65, 140);

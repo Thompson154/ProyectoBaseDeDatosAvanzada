@@ -1,85 +1,58 @@
--- Colocar todas las FUNCIONES
+/* F1: umbral de level-up */
+CREATE FUNCTION fn_level_threshold(lvl INT) RETURNS INT
+LANGUAGE sql IMMUTABLE AS
+$$ SELECT 1000 * lvl; $$;
 
--- Funcion para obtener la dificultad del mapa
-CREATE OR REPLACE FUNCTION obtener_dificultad_mapa(p_id INT) RETURNS VARCHAR(20) AS $$
-BEGIN
-    RETURN (SELECT dificultad FROM mapas WHERE id = p_id);
-END;
-$$ LANGUAGE plpgsql;
-
--- Funcion para ver si si un mapa es dificil
-CREATE OR REPLACE FUNCTION es_mapa_dificil(p_id INT) RETURNS BOOLEAN AS $$
-BEGIN
-    RETURN (SELECT dificultad = 'Difícil' FROM mapas WHERE id = p_id);
-END;
-$$ LANGUAGE plpgsql;
-
---Funcion para sugerir_misiones
-CREATE OR REPLACE FUNCTION sugerir_misiones(p_jugador_id INT)
-RETURNS TABLE (mision_id INT, titulo VARCHAR(100), nivel_recomendado INT, dificultad_mapa VARCHAR(20)) AS $$
+/* F2: sumar XP y aplicar level-up */
+CREATE OR REPLACE FUNCTION fn_add_xp(p_player_id INT, p_xp INT)
+RETURNS TABLE (new_level INT, new_xp INT)
+LANGUAGE plpgsql AS $$
 DECLARE
-    nivel_jugador INT;
+  v_current_level INT;
+  v_current_xp INT;
+  v_new_level INT;
+  v_new_xp INT;
 BEGIN
-    SELECT nivel INTO nivel_jugador
-    FROM jugadores
-    WHERE id = p_jugador_id;
+  SELECT level, xp INTO v_current_level, v_current_xp
+  FROM player_stats
+  WHERE player_id = p_player_id;
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Jugador con ID % no encontrado', p_jugador_id;
-    END IF;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Player with ID % does not exist in player_stats', p_player_id;
+  END IF;
 
-    IF nivel_jugador IS NULL THEN
-        RAISE EXCEPTION 'El nivel del jugador con ID % es nulo', p_jugador_id;
-    END IF;
+  v_new_xp := v_current_xp + p_xp;
+  v_new_level := v_current_level;
 
-    RETURN QUERY
-    SELECT m.id, m.titulo, m.nivel_recomendado, mp.dificultad
-    FROM misiones m
-    JOIN mapas mp ON m.mapa_id = mp.id
-    WHERE m.nivel_recomendado BETWEEN GREATEST(1, nivel_jugador - 2) AND nivel_jugador + 2
-    AND NOT EXISTS (
-        SELECT 1
-        FROM jugador_mision jm
-        WHERE jm.mision_id = m.id
-        AND jm.jugador_id = p_jugador_id
-        AND jm.estado = 'completada'
-    )
-    ORDER BY m.nivel_recomendado;
+  WHILE v_new_xp >= fn_level_threshold(v_new_level) LOOP
+    v_new_xp := v_new_xp - fn_level_threshold(v_new_level);
+    v_new_level := v_new_level + 1;
+  END LOOP;
+
+  UPDATE player_stats
+  SET level = v_new_level, xp = v_new_xp
+  WHERE player_id = p_player_id;
+
+  RETURN QUERY SELECT v_new_level, v_new_xp;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
-
---Funcion para contar jugadores activos
-CREATE OR REPLACE FUNCTION contar_jugadores_activos()
-RETURNS INT AS $$
-BEGIN
-    RETURN (SELECT COUNT(*) FROM jugadores WHERE estado = 'activo');
-END;
-$$ LANGUAGE plpgsql;
-
-
---Funcion para obtener recompensas de mision
-CREATE OR REPLACE FUNCTION obtener_recompensa_mision(p_mision_id INT)
-RETURNS TEXT AS $$
-BEGIN
-    RETURN (SELECT recompensa FROM misiones WHERE id = p_mision_id);
-END;
-$$ LANGUAGE plpgsql;
-
-
-
--- Total de enemigos derrotados por un jugador en todas sus partidas
-CREATE OR REPLACE FUNCTION total_enemigos_derrotados_por_jugador(p_jugador_id INT)
-RETURNS INT AS $$
+/* F3: El Jugador toma el daño */
+CREATE OR REPLACE FUNCTION fn_damage_player(p_player_id INT, p_damage INT)
+RETURNS INT
+LANGUAGE plpgsql AS $$
 DECLARE
-    total INT;
+  v_hp_remaining INT;
 BEGIN
-    SELECT COALESCE(SUM(enemigos_derrotados), 0)
-    INTO total
-    FROM partidas
-    WHERE jugador_id = p_jugador_id;
+  UPDATE player_stats
+  SET hp = GREATEST(hp - p_damage, 0)
+  WHERE player_id = p_player_id
+  RETURNING hp INTO v_hp_remaining;
 
-    RETURN total;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Player with ID % does not exist in player_stats', p_player_id;
+  END IF;
+
+  RETURN v_hp_remaining;
 END;
-$$ LANGUAGE plpgsql;
-
+$$;

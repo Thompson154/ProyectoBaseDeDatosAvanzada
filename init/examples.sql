@@ -2,44 +2,32 @@
 
 --Funciones (Postgres)
 
---Obtener Dificultad Mapa
---select obtener_dificultad_mapa(4);
+-- Añadir la experiencia al Jugador
+-- SELECT * FROM fn_add_xp(5, 2000);
 
--- Probar es_mapa_dificil
---SELECT es_mapa_dificil(2) AS es_dificil;
---SELECT es_mapa_dificil(1) AS no_dificil;
+-- Hacer daño al jugador
+-- select fn_damage_player(1, 50);
 
--- Probar sugerir_misiones
--- SELECT * FROM sugerir_misiones(1);
-
--- Contar numero de jugadores activos
--- select contar_jugadores_activos();
-
--- Obtener recompensa de misiones
--- SELECT obtener_recompensa_mision(4);
-
--- Obetener todos los enemigos que derroto un jugador
--- SELECT total_enemigos_derrotados_por_jugador(3);
 
 
 ------------------------------------------------------------------------------------------------------
 
 --Stored Procedures (Postgres)
 
--- Llamar al procedimiento para agregar un mapa
--- CALL agregar_mapa('Bosque Oscuro', 'Zona Norte', 'Medio');
+-- Llamar al procedimiento para atacar a un zombie
+-- CALL sp_attack_zombie(5, 10, 25, 3);
 
--- LLamar al procedimiento para actualizar la dificultad del mapa
--- CALL actualizar_dificultad_mapa(1, 'Dificil');
+-- LLamar al procedimiento para curar al jugador
+-- call sp_heal_player(1, 50);
 
--- Llamar al procedimiento para actualizar _estado_mision
--- CALL actualizar_estado_mision(1271, 1, 'fallida');
+-- Llamar al procedimiento para añadir un item a su invetario
+-- call sp_add_item(1, 1, 2);
 
--- LLamar al procedimiento para generar enemigos en cierto mapa
--- call generar_enemigo_mapa (1);
+-- LLamar al procedimiento para empezar una mision
+-- call sp_start_mission(1, 2);
 
--- Llamar al procedimiento para agregar item al inventario
--- call agregar_item_inventario(1, 5);
+-- Llamar al procedimiento para completar una mision
+-- call sp_complete_mission(1,2);
 
 -------------------------------------------------------------------------------------------------------
 
