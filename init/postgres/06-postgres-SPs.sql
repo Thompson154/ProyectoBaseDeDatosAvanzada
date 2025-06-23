@@ -1,10 +1,64 @@
 /* SP1: atacar zombi */
-CREATE PROCEDURE sp_attack_zombie(p_player INT, p_zombie INT, p_dmg INT, p_weapon INT)
+CREATE OR REPLACE PROCEDURE sp_attack_zombie(
+    p_player_id INT,
+    p_zombie_id INT,
+    p_damage INT,
+    p_weapon_id INT
+)
 LANGUAGE plpgsql AS $$
+DECLARE
+    v_session_id INTEGER;
+    v_hp_remaining INTEGER;
 BEGIN
-  INSERT INTO combat_logs(event_time,player_id,target_type,target_id,weapon_id,action,amount)
-  VALUES (NOW(), p_player,'zombie',p_zombie,p_weapon,'damage',p_dmg);
-END$$;
+    IF NOT EXISTS (SELECT 1 FROM players WHERE player_id = p_player_id) THEN
+        RAISE EXCEPTION 'Player with ID % does not exist', p_player_id;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM session_zombies WHERE zombie_id = p_zombie_id) THEN
+        RAISE EXCEPTION 'Zombie with ID % does not exist', p_zombie_id;
+    END IF;
+
+    SELECT session_id INTO v_session_id
+    FROM session_zombies
+    WHERE zombie_id = p_zombie_id;
+
+    IF v_session_id IS NULL THEN
+        RAISE EXCEPTION 'No session found for zombie with ID %', p_zombie_id;
+    END IF;
+
+    UPDATE session_zombies
+    SET current_hp = current_hp - p_damage
+    WHERE zombie_id = p_zombie_id
+    RETURNING current_hp INTO v_hp_remaining;
+
+    INSERT INTO combat_log (
+        session_id,
+        attacker_type,
+        attacker_id,
+        target_type,
+        target_id,
+        action_type,
+        action_id,
+        damage_dealt,
+        is_critical,
+        hp_remaining
+    ) VALUES (
+        v_session_id,
+        'player',
+        p_player_id,
+        'zombie',
+        p_zombie_id,
+        CASE WHEN p_weapon_id IS NOT NULL THEN 'item_use' ELSE 'melee_attack' END,
+        p_weapon_id,
+        p_damage,
+        FALSE,
+        v_hp_remaining
+    );
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+END;
+$$;
 
 /* SP2: curar jugador */
 CREATE PROCEDURE sp_heal_player(p_player INT, p_amt INT)
@@ -14,15 +68,8 @@ BEGIN
   WHERE player_id = p_player;
 END$$;
 
-/* SP3: usar habilidad */
-CREATE PROCEDURE sp_use_skill(p_player INT,p_skill INT,p_target INT,p_ttype TEXT)
-LANGUAGE plpgsql AS $$
-BEGIN
-  INSERT INTO combat_logs(event_time,player_id,target_type,target_id,action,amount,notes)
-  VALUES (NOW(),p_player,p_ttype,p_target,'skill',0,'skill='||p_skill);
-END$$;
 
-/* SP4: añadir objeto a inventario */
+/* SP3: añadir objeto a inventario */
 CREATE PROCEDURE sp_add_item(p_inv INT,p_item INT,p_qty INT)
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -32,7 +79,7 @@ BEGIN
     UPDATE SET quantity = inventory_items.quantity + EXCLUDED.quantity;
 END$$;
 
-/* SP5: iniciar misión */
+/* SP4: iniciar misión */
 CREATE PROCEDURE sp_start_mission(p_player INT,p_mission INT)
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -41,7 +88,7 @@ BEGIN
   ON CONFLICT DO NOTHING;
 END$$;
 
-/* SP6: completar misión */
+/* SP5: completar misión */
 CREATE PROCEDURE sp_complete_mission(p_player INT,p_mission INT)
 LANGUAGE plpgsql AS $$
 BEGIN

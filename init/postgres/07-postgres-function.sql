@@ -4,65 +4,55 @@ LANGUAGE sql IMMUTABLE AS
 $$ SELECT 1000 * lvl; $$;
 
 /* F2: sumar XP y aplicar level-up */
-CREATE FUNCTION fn_add_xp(p_player INT, p_xp INT) RETURNS VOID
-LANGUAGE plpgsql AS $$
-BEGIN
-  UPDATE player_stats
-  SET xp = xp + p_xp
-  WHERE player_id = p_player;
-
-  PERFORM fn_check_level_up(p_player);
-END$$;
-
-/* F3: chequeo y subida de nivel */
-CREATE FUNCTION fn_check_level_up(p_player INT) RETURNS VOID
+CREATE OR REPLACE FUNCTION fn_add_xp(p_player_id INT, p_xp INT)
+RETURNS TABLE (new_level INT, new_xp INT)
 LANGUAGE plpgsql AS $$
 DECLARE
-  cur_lvl  INT;
-  cur_xp   INT;
+  v_current_level INT;
+  v_current_xp INT;
+  v_new_level INT;
+  v_new_xp INT;
 BEGIN
-  SELECT level, xp INTO cur_lvl, cur_xp
-  FROM   player_stats
-  WHERE  player_id = p_player;
+  SELECT level, xp INTO v_current_level, v_current_xp
+  FROM player_stats
+  WHERE player_id = p_player_id;
 
-  WHILE cur_xp >= fn_level_threshold(cur_lvl) LOOP
-    cur_xp := cur_xp - fn_level_threshold(cur_lvl);
-    cur_lvl := cur_lvl + 1;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Player with ID % does not exist in player_stats', p_player_id;
+  END IF;
+
+  v_new_xp := v_current_xp + p_xp;
+  v_new_level := v_current_level;
+
+  WHILE v_new_xp >= fn_level_threshold(v_new_level) LOOP
+    v_new_xp := v_new_xp - fn_level_threshold(v_new_level);
+    v_new_level := v_new_level + 1;
   END LOOP;
 
   UPDATE player_stats
-  SET level = cur_lvl, xp = cur_xp
-  WHERE player_id = p_player;
-END$$;
+  SET level = v_new_level, xp = v_new_xp
+  WHERE player_id = p_player_id;
 
-/* F4: bajar HP de jugador */
-CREATE FUNCTION fn_damage_player() RETURNS TRIGGER AS $$
+  RETURN QUERY SELECT v_new_level, v_new_xp;
+END;
+$$;
+
+/* F3: El Jugador toma el daño */
+CREATE OR REPLACE FUNCTION fn_damage_player(p_player_id INT, p_damage INT)
+RETURNS INT
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_hp_remaining INT;
 BEGIN
   UPDATE player_stats
-  SET hp = GREATEST(hp - NEW.amount, 0)
-  WHERE player_id = NEW.target_id;
-  RETURN NEW;
-END$$ LANGUAGE plpgsql;
+  SET hp = GREATEST(hp - p_damage, 0)
+  WHERE player_id = p_player_id
+  RETURNING hp INTO v_hp_remaining;
 
-/* F5: bajar HP de zombi y otorgar XP si muere */
-CREATE FUNCTION fn_damage_zombie() RETURNS TRIGGER AS $$
-DECLARE
-  hp_left INT;
-BEGIN
-  UPDATE session_zombies
-  SET current_hp = current_hp - NEW.amount
-  WHERE zombie_id = NEW.target_id
-  RETURNING current_hp INTO hp_left;
-
-  IF hp_left <= 0 THEN
-    INSERT INTO kill_logs(player_id,zombie_type,session_id)
-    SELECT NEW.player_id, type_id, session_id
-    FROM   session_zombies
-    WHERE  zombie_id = NEW.target_id;
-
-    PERFORM fn_add_xp(NEW.player_id, 250);  -- recompensa fija
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Player with ID % does not exist in player_stats', p_player_id;
   END IF;
-  RETURN NEW;
-END$$ LANGUAGE plpgsql;
 
--- Falta F6
+  RETURN v_hp_remaining;
+END;
+$$;
