@@ -83,19 +83,3 @@ CREATE TABLE session_zombies (
     spawned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     is_enraged BOOLEAN NOT NULL DEFAULT FALSE
 );
-
-
-/* 11. Registro de Combate --------------------------------------------  */
-CREATE TABLE combat_log (
-    log_id        SERIAL PRIMARY KEY,
-    session_id    INTEGER NOT NULL REFERENCES map_sessions(session_id) ON DELETE CASCADE,
-    attacker_type VARCHAR(20) NOT NULL CHECK (attacker_type IN ('player', 'zombie', 'environment')), 
-    attacker_id   INTEGER NOT NULL,
-    target_type   VARCHAR(20) NOT NULL CHECK (target_type IN ('player', 'zombie', 'environment')), 
-    target_id     INTEGER NOT NULL,
-    action_type   VARCHAR(30) NOT NULL,
-    action_id     INTEGER,
-    damage_dealt  INTEGER NOT NULL DEFAULT 0, 
-    is_critical   BOOLEAN NOT NULL DEFAULT FALSE,
-    hp_remaining  INTEGER NOT NULL, 
-    event_time    TIMESTAMPTZ NOT NULL DEFAULT NOW() 
