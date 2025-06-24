@@ -121,3 +121,42 @@ async function main() {
 }
 
 main().catch(console.error);
+
+/* configsvr:
+    image: mongo:6.0
+    container_name: configsvr
+    command: ["mongod", "--configsvr", "--replSet", "configReplSet", "--port", "27019", "--bind_ip_all"]
+    ports:
+      - "27019:27019"
+    volumes:
+      - ./data/configdb:/data/configdb
+
+  shard1:
+    image: mongo:6.0
+    container_name: shard1
+    command: ["mongod", "--shardsvr", "--replSet", "shard1ReplSet", "--port", "27018", "--bind_ip_all"]
+    ports:
+      - "27018:27018"
+    volumes:
+      - ./data/shard1:/data/db
+
+  shard2:
+    image: mongo:6.0
+    container_name: shard2
+    command: ["mongod", "--shardsvr", "--replSet", "shard2ReplSet", "--port", "27017", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/shard2:/data/db
+
+  mongos:
+    image: mongo:6.0
+    container_name: mongos
+    depends_on:
+      - configsvr
+      - shard1
+      - shard2
+    command: >
+      mongos --configdb configReplSet/configsvr:27019 --bind_ip_all --port 27020
+    ports:
+      - "27020:27020"*/ 
