@@ -1,19 +1,14 @@
-/* T1: log si cambia daño de un arma */
-CREATE TRIGGER trg_item_damage
-AFTER UPDATE ON items
-FOR EACH ROW
-  IF OLD.base_damage <> NEW.base_damage THEN
-     INSERT INTO item_change_log(item_id,old_damage,new_damage)
-     VALUES (NEW.item_id,OLD.base_damage,NEW.base_damage);
-  END IF;
+DELIMITER //
 
-/* T2: impedir item con durabilidad negativa */
+/* T1: impedir item con durabilidad negativa */
 CREATE TRIGGER trg_item_durability_chk
 BEFORE INSERT ON items
 FOR EACH ROW
+BEGIN
   IF NEW.max_durability < 0 THEN
-     SET NEW.max_durability = 0;
+    SET NEW.max_durability = 0;
   END IF;
+END;
 
 /* T3: asegurar nombre único de habilidad */
 CREATE TRIGGER trg_skill_unique
@@ -44,3 +39,6 @@ CREATE TRIGGER trg_add_default_ability
 AFTER INSERT ON zombie_types
 FOR EACH ROW
   INSERT INTO zombie_type_abilities(type_id,ability_id) VALUES (NEW.type_id,1);
+
+
+DELIMITER;

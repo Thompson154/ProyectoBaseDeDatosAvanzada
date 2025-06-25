@@ -77,13 +77,34 @@
 
 --Funciones (MariaDB)
 
+--Cuanto da de experiencia un Zombie
+--SELECT fn_zombie_xp(5) AS xp;
+
+-- Calcular cuanta experiencia te la mision
+--SELECT fn_calculate_mission_reward(1) AS mission_reward;
+
+-- Ver la rareza de un item
+--SELECT fn_rarity_color(1) AS color;
+
+-- Ver la decripcion de una habilidad
+--SELECT fn_skill_desc(3) AS skill_description; 
 
 
 -------------------------------------------------------------------------------------------------------
 
 --Stored Procedures (MariaDB)
 
+-- Añadir un arma a items
+-- CALL sp_add_weapon('Steel Sword', 3, 70, 90);
 
+-- Asignar Habilidades a los Zombies
+-- CALL sp_assign_ability(1, 9);
+
+-- Crear una mission
+-- CALL sp_create_mission(3, 'Rescue Mission', JSON_OBJECT('survivors', 3));
+
+-- Ver Estadiscas de un arma
+-- CALL sp_weapon_stats(2);
 
 
 -------------------------------------------------------------------------------------------------------
