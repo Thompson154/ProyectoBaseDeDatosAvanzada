@@ -1,4 +1,4 @@
-use deadisland;
+db = db.getSiblingDB('videojuego');
     /*1. Jugadores con más XP por nivel*/
     db.players.aggregate([
         { $match: { "player_stats.level": { $gte: 1 } } },

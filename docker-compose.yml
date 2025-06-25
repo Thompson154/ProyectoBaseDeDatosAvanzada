@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
     - pgdata:/var/lib/postgresql/data
     - ./init/postgres:/docker-entrypoint-initdb.d
@@ -22,11 +22,24 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mariadbdata:/var/lib/mysql
       - ./init/mariadb:/docker-entrypoint-initdb.d
 
+  mongo:
+    image: mongo:6.0
+    container_name: mongo
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongodata:/data/db
+      - ./init/mongo:/docker-entrypoint-initdb.d
+    restart: always
 
   cache:
     image: redis:6.2-alpine

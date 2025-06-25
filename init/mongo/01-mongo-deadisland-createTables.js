@@ -1,5 +1,4 @@
-use deadisland;
-
+db = db.getSiblingDB('videojuego');
 /* 1. users */
 db.createCollection("users", {
   validator: {

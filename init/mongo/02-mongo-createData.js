@@ -1,4 +1,4 @@
-use deadisland;
+db = db.getSiblingDB('videojuego');
 
     db.users.insertMany([
         {
