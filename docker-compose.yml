@@ -87,7 +87,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: slavepass
     ports:
-      - "5453:5432"
+      - "5453:5432" 
     depends_on:
       - pg-master
     volumes:
