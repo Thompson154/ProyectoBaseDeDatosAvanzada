@@ -11,6 +11,7 @@
     "restore": "node backupDeadIsland2/scripts/restore.js",
     "rmvolumen": "docker volume rm proyectobasededatosavanzada_pgdata proyectobasededatosavanzada_mariadbdata proyectobasededatosavanzada_mongodata proyectobasededatosavanzada_redisdata",
     "rmvolumen2": "docker volume rm proyectobasededatosavanzada_pgdata proyectobasededatosavanzada_mariadbdata proyectobasededatosavanzada_pgdata_etl",
+    "rmvolumen3": "docker volume rm proyectobasededatosavanzada_pgdata proyectobasededatosavanzada_pgdata-slave1 proyectobasededatosavanzada_pgdata-slave2 proyectobasededatosavanzada_mariadbdata proyectobasededatosavanzada_mongodata proyectobasededatosavanzada_cache",
     "sharding": "node shardingDeadIsland2/scripts/sharding.js",
     "cache": "node init/redis/index.js"
   },
