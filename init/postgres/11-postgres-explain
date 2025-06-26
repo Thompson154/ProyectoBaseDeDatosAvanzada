@@ -1,0 +1,24 @@
+-- Consulta 1: Obtener todas las misiones activas de los jugadores
+/*
+EXPLAIN
+SELECT pm.player_id, pm.mission_id, pm.started_at
+FROM player_missions pm
+WHERE pm.state = 'active';*/
+
+-- Consulta 2: Obtener el top 10 de jugadores por nivel y experiencia
+/*EXPLAIN
+SELECT ps.player_id, u.username, ps.level, ps.xp
+FROM player_stats ps
+JOIN players p ON ps.player_id = p.player_id
+JOIN users u ON p.user_id = u.user_id
+ORDER BY ps.level DESC, ps.xp DESC
+LIMIT 10;*/
+
+-- Consulta 3: Contar zombis por sesión y filtrar sesiones con más de 50 zombis
+/*EXPLAIN
+SELECT sz.session_id, ms.map_id, COUNT(*) AS zombie_count
+FROM session_zombies sz
+JOIN map_sessions ms ON sz.session_id = ms.session_id
+WHERE sz.current_hp > 0
+GROUP BY sz.session_id, ms.map_id
+HAVING COUNT(*) > 50;*/

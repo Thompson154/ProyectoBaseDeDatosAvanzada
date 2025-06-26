@@ -1,12 +1,13 @@
-/* Cambios a catálogos */
-CREATE TABLE item_change_log (
-  change_id  BIGINT AUTO_INCREMENT PRIMARY KEY,
-  item_id    INT,
-  old_damage INT,
-  new_damage INT,
-  changed_at DATETIME DEFAULT NOW()
-) ENGINE=InnoDB;
+DELIMITER //
 
-/* Hash-partition de misiones por map_id */
-ALTER TABLE missions
-PARTITION BY HASH(map_id) PARTITIONS 8;
+-- Crear tabla player_inventory con particionamiento por HASH en player_id
+CREATE TABLE player_inventory (
+    player_id INT NOT NULL,
+    item_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    durability INT NOT NULL,
+    PRIMARY KEY (player_id, item_id)
+) ENGINE=InnoDB
+PARTITION BY HASH (player_id) PARTITIONS 4//
+
+DELIMITER ;
