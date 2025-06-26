@@ -1,11 +1,3 @@
 CREATE INDEX idx_missions_state ON player_missions(state);
-CREATE INDEX idx_zombie_type ON session_zombies(type_id);
-CREATE INDEX idx_inventory_item ON inventory_items(item_id);
-CREATE INDEX idx_players_level ON player_stats(level DESC);
 CREATE INDEX idx_player_stats_rank ON player_stats (level DESC, xp DESC);
-CREATE INDEX idx_map_players_player ON map_players (player_id);
 CREATE INDEX idx_session_zombies_session ON session_zombies (session_id);
-CREATE INDEX idx_combat_log_session ON combat_log (session_id);
-CREATE INDEX idx_combat_log_attacker ON combat_log (attacker_type, attacker_id);
-CREATE INDEX idx_combat_log_target ON combat_log (target_type, target_id);
-CREATE INDEX idx_combat_log_time ON combat_log (event_time DESC);
