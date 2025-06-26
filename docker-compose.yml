@@ -12,6 +12,8 @@ services:
     volumes:
     - pgdata:/var/lib/postgresql/data
     - ./init/postgres:/docker-entrypoint-initdb.d
+    - ./exports:/tmp/exports
+    - ${PATH_CSV}:/csv
 
   mariadb:
     image: mariadb:10.5
@@ -26,6 +28,21 @@ services:
     volumes:
       - mariadbdata:/var/lib/mysql
       - ./init/mariadb:/docker-entrypoint-initdb.d
+      - ./exports:/tmp/exports
+      - ${PATH_CSV}:/csv
+  postgresETL:
+    image: postgres:15
+    container_name: postgres_etl
+    environment:
+      POSTGRES_USER: etl_user          
+      POSTGRES_PASSWORD: etl_secret    
+      POSTGRES_DB: etl_db              
+    ports:
+      - "5443:5432"                    
+    volumes:
+      - pgdata_etl:/var/lib/postgresql/data
+      - ./init/etl:/docker-entrypoint-initdb.d
+      - ${PATH_CSV}:/csv
 
 
   cache:
@@ -40,6 +57,7 @@ services:
 
 volumes:
   pgdata:
+  pgdata_etl:
   mariadbdata:
   mongodata:
   cache:
