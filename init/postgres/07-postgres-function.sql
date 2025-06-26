@@ -24,11 +24,6 @@ BEGIN
   v_new_xp := v_current_xp + p_xp;
   v_new_level := v_current_level;
 
-  WHILE v_new_xp >= fn_level_threshold(v_new_level) LOOP
-    v_new_xp := v_new_xp - fn_level_threshold(v_new_level);
-    v_new_level := v_new_level + 1;
-  END LOOP;
-
   UPDATE player_stats
   SET level = v_new_level, xp = v_new_xp
   WHERE player_id = p_player_id;

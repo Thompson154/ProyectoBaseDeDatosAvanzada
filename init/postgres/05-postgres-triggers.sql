@@ -1,12 +1,21 @@
 /* T1: level-up cuando se actualiza xp */
 CREATE FUNCTION fn_level_up_trigger() RETURNS TRIGGER AS $$
+DECLARE
+  cur_lvl  INT := NEW.level;
+  cur_xp   BIGINT := NEW.xp;
 BEGIN
-  PERFORM fn_check_level_up(NEW.player_id);
+  WHILE cur_xp >= fn_level_threshold(cur_lvl) LOOP
+    cur_xp := cur_xp - fn_level_threshold(cur_lvl);
+    cur_lvl := cur_lvl + 1;
+  END LOOP;
+
+  NEW.level := cur_lvl;
+  NEW.xp := cur_xp;
   RETURN NEW;
 END$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_check_lvl
-AFTER UPDATE OF xp ON player_stats
+BEFORE UPDATE OF xp ON player_stats
 FOR EACH ROW EXECUTE FUNCTION fn_level_up_trigger();
 
 /* T2: capacidad de inventario */

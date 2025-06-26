@@ -77,19 +77,51 @@
 
 --Funciones (MariaDB)
 
+--Cuanto da de experiencia un Zombie
+--SELECT fn_zombie_xp(5) AS xp;
+
+-- Calcular cuanta experiencia te la mision
+--SELECT fn_calculate_mission_reward(1) AS mission_reward;
+
+-- Ver la rareza de un item
+--SELECT fn_rarity_color(1) AS color;
+
+-- Ver la decripcion de una habilidad
+--SELECT fn_skill_desc(3) AS skill_description; 
 
 
 -------------------------------------------------------------------------------------------------------
 
 --Stored Procedures (MariaDB)
 
+-- Añadir un arma a items
+-- CALL sp_add_weapon('Steel Sword', 3, 70, 90);
 
+-- Asignar Habilidades a los Zombies
+-- CALL sp_assign_ability(1, 9);
+
+-- Crear una mission
+-- CALL sp_create_mission(3, 'Rescue Mission', JSON_OBJECT('survivors', 3));
+
+-- Ver Estadiscas de un arma
+-- CALL sp_weapon_stats(2);
 
 
 -------------------------------------------------------------------------------------------------------
 
 --Triggers (MariaDB)
 
--- Llamar al procedimiento para otorgar recompensas eventos
--- CALL otorgar_recompensas_eventos(1, 10);
+-- Impide que un item tenga durabilidad negativa
+-- INSERT INTO items (rarity_id, name, base_damage, max_durability)
+-- VALUES (1, 'Test Item', 10, -5);
+-- SELECT max_durability FROM items WHERE name = 'Test Item';
 
+-- Asegura que el nombre de la habilidad sea único
+-- INSERT INTO skills (skill_name, description)
+-- VALUES ('Fireball', 'Lanza una bola de fuego que causa daño.');
+-- INSERT INTO skills (skill_name, description)
+-- VALUES ('Fireball', 'Lanza una bola de fuego que causa daño.');
+
+-- Trigger para poder utilizar la tabla sin riesgo de item inexistente
+-- INSERT INTO player_inventory (player_id, item_id, quantity, durability)
+-- VALUES (123, 999, 1, 10); -- Debería fallar

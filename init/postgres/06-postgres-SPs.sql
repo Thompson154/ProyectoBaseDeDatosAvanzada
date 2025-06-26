@@ -54,6 +54,7 @@ BEGIN
 EXCEPTION
     WHEN OTHERS THEN
         RAISE EXCEPTION 'Error in sp_attack_zombie: %', SQLERRM;
+        ROLLBACK;
 END;
 $$;
 
