@@ -3,6 +3,7 @@ services:
   postgres:
     image: postgres:15
     container_name: postgres-master
+    restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -19,6 +20,7 @@ services:
   postgres-slave1:
     image: postgres:15
     container_name: postgres-slave1
+    restart: always
     environment:
       POSTGRES_USER: ${PG_SLAVE1_USER}
       POSTGRES_PASSWORD: ${PG_SLAVE1_PASSWORD}
@@ -37,6 +39,7 @@ services:
   postgres-slave2:
     image: postgres:15
     container_name: postgres-slave2
+    restart: always
     environment:
       POSTGRES_USER: ${PG_SLAVE2_USER}
       POSTGRES_PASSWORD: ${PG_SLAVE2_PASSWORD}
