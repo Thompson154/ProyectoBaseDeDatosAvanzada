@@ -2,7 +2,7 @@ version: "3.9"
 services:
   postgres:
     image: postgres:15
-    container_name: postgres
+    container_name: postgres-master
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -10,8 +10,47 @@ services:
     ports:
       - "5433:5432"
     volumes:
-    - pgdata:/var/lib/postgresql/data
-    - ./init/postgres:/docker-entrypoint-initdb.d
+      - pgdata:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d
+      - ./config/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./config/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+
+  postgres-slave1:
+    image: postgres:15
+    container_name: postgres-slave1
+    environment:
+      POSTGRES_USER: ${PG_SLAVE1_USER}
+      POSTGRES_PASSWORD: ${PG_SLAVE1_PASSWORD}
+      POSTGRES_DB: ${PG_SLAVE1_DB}
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-slave1:/var/lib/postgresql/data
+      - ./config/postgres-slave1/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./config/postgres-slave1/pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ./config/postgres-slave1/standby.signal:/var/lib/postgresql/data/standby.signal
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    depends_on:
+      - postgres
+
+  postgres-slave2:
+    image: postgres:15
+    container_name: postgres-slave2
+    environment:
+      POSTGRES_USER: ${PG_SLAVE2_USER}
+      POSTGRES_PASSWORD: ${PG_SLAVE2_PASSWORD}
+      POSTGRES_DB: ${PG_SLAVE2_DB}
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata-slave2:/var/lib/postgresql/data
+      - ./config/postgres-slave2/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./config/postgres-slave2/pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ./config/postgres-slave2/standby.signal:/var/lib/postgresql/data/standby.signal
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    depends_on:
+      - postgres
 
   mariadb:
     image: mariadb:10.5
@@ -49,10 +88,11 @@ services:
     command: redis-server --save 20 1 --loglevel warning --requirepass root123
     volumes: 
       - cache:/data
-      
 
 volumes:
   pgdata:
+  pgdata-slave1:
+  pgdata-slave2:
   mariadbdata:
   mongodata:
   cache:
