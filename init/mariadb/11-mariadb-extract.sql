@@ -11,6 +11,7 @@ FROM items i
 JOIN rarities r USING (rarity_id);
 
 /* ============= dim_map ================================= */
+USE videojuego;
 SELECT  map_id,
         map_name,
         has_night_cycle,
@@ -21,6 +22,7 @@ LINES  TERMINATED BY '\n'
 FROM maps;
 
 /* ============= dim_mission ============================= */
+USE videojuego;
 SELECT  m.mission_id,
         m.mission_name,
         GROUP_CONCAT(mt.type_name) AS mission_type,
@@ -34,6 +36,7 @@ LEFT JOIN mission_types      mt USING (type_id)
 GROUP BY m.mission_id;
 
 /* ============= dim_zombie_type ========================= */
+USE videojuego;
 SELECT  z.type_id,
         z.type_name,
         z.base_hp,

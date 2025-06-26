@@ -1,9 +1,8 @@
 import pandas as pd
 from pathlib import Path
 
-src = Path("/tmp")            # origen de los .csv extraídos
-dst = Path("/tmp/xform")      # destino intermedio (crea carpeta)
-
+src = Path("/init/etl/csv")            # origen de los .csv extraídos
+dst = Path("/csv")      # destino intermedio (crea carpeta)
 dst.mkdir(exist_ok=True)
 
 # ---------- Dim Tiempo ----------
